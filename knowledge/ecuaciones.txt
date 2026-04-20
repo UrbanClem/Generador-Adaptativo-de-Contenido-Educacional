@@ -1,0 +1,4 @@
+Las ecuaciones de primer grado son igualdades matemáticas con una variable cuyo exponente es 1.
+Para resolverlas, se deben aislar los términos con variable de un lado y los constantes del otro.
+Ejemplo: x + 5 = 10 → x = 10 - 5 → x = 5
+Propiedades: suma, resta, multiplicación y división en ambos lados mantienen la igualdad.
