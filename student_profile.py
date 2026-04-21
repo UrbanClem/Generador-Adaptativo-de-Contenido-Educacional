@@ -35,15 +35,18 @@ def diagnostic_assessment():
     
     return level, {"score": score, "level": level, "details": level_count}
 
-def create_or_get_student(name):
-    session = SessionLocal()
+def create_or_get_student(session, name):
     student = session.query(Student).filter_by(name=name).first()
     if not student:
+        print(f"\n📝 Estudiante nuevo. Realizando evaluación diagnóstica...")
         level, results = diagnostic_assessment()
         student = Student(name=name, level=level, diagnostic_results=results)
         session.add(student)
         session.commit()
+        print(f"✅ Estudiante {name} registrado con nivel {level}")
     else:
-        print(f"\nBienvenido de vuelta {student.name} (nivel: {student.level})")
-    session.close()
+        print(f"\n✅ Bienvenido de vuelta {student.name} (nivel: {student.level})")
+    
+    # Refrescar el objeto para asegurar que está ligado a la sesión
+    session.refresh(student)
     return student

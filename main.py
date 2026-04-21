@@ -9,38 +9,46 @@ def main():
     # 1. Cargar documentos
     load_knowledge_base()
     
-    # 2. Identificar estudiante
-    name = input("Nombre del estudiante: ")
-    student = create_or_get_student(name)
+    # 2. Crear sesión de base de datos (se mantendrá abierta)
+    db_session = SessionLocal()
     
-    while True:
-        print(f"\n--- Menú para {student.name} (nivel: {student.level}) ---")
-        print("1. Generar explicación personalizada")
-        print("2. Generar ejercicios de práctica")
-        print("3. Simular retroalimentación")
-        print("4. Salir")
+    try:
+        # 3. Identificar estudiante (usando la misma sesión)
+        name = input("Nombre del estudiante: ")
+        student = create_or_get_student(db_session, name)
         
-        option = input("Opción: ")
-        
-        if option == "1":
-            topic = input("¿Qué tema quieres aprender? ")
-            explanation = generate_explanation(topic, student.level)
-            print(f"\n🔹 EXPLICACIÓN:\n{explanation}\n")
-        
-        elif option == "2":
-            topic = input("¿Sobre qué tema quieres ejercicios? ")
-            exercises = generate_exercises(topic, student.level)
-            print(f"\n📝 EJERCICIOS:\n{exercises}\n")
-        
-        elif option == "3":
-            user_answer = input("Tu respuesta: ")
-            correct = input("Respuesta correcta: ")
-            feedback = give_feedback(user_answer, correct, student.level)
-            print(f"\n💬 RETROALIMENTACIÓN:\n{feedback}\n")
-        
-        elif option == "4":
-            print("¡Hasta luego!")
-            break
+        while True:
+            print(f"\n--- Menú para {student.name} (nivel: {student.level}) ---")
+            print("1. Generar explicación personalizada")
+            print("2. Generar ejercicios de práctica")
+            print("3. Simular retroalimentación")
+            print("4. Salir")
+            
+            option = input("Opción: ")
+            
+            if option == "1":
+                topic = input("¿Qué tema quieres aprender? ")
+                explanation = generate_explanation(topic, student.level)
+                print(f"\n🔹 EXPLICACIÓN:\n{explanation}\n")
+            
+            elif option == "2":
+                topic = input("¿Sobre qué tema quieres ejercicios? ")
+                exercises = generate_exercises(topic, student.level)
+                print(f"\n📝 EJERCICIOS:\n{exercises}\n")
+            
+            elif option == "3":
+                user_answer = input("Tu respuesta: ")
+                correct = input("Respuesta correcta: ")
+                feedback = give_feedback(user_answer, correct, student.level)
+                print(f"\n💬 RETROALIMENTACIÓN:\n{feedback}\n")
+            
+            elif option == "4":
+                print("¡Hasta luego!")
+                break
+    
+    finally:
+        # 4. Cerrar la sesión al salir
+        db_session.close()
 
 if __name__ == "__main__":
     main()
