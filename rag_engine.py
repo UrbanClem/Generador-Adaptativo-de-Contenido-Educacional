@@ -31,7 +31,10 @@ def load_knowledge_base(folder_path="./knowledge"):
     print(f"Cargados {collection.count()} documentos")
 
 def retrieve_context(query, n_results=3):
-    results = collection.query(query_texts=[query], n_results=n_results)
+    available = collection.count()
+    if available == 0:
+        return ""
+    results = collection.query(query_texts=[query], n_results=min(n_results, available))
     if results['documents']:
         return "\n".join(results['documents'][0])
     return ""

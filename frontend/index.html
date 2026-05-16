@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema Educativo Adaptativo</title>
+    <link rel="stylesheet" href="/frontend/style.css" />
+</head>
+<body>
+
+    <!-- Vista: Bienvenida -->
+    <div id="view-welcome" class="view active">
+        <div class="card">
+            <h1>Sistema Educativo Adaptativo</h1>
+            <p class="subtitle">Ecuaciones de Primer Grado</p>
+            <div class="form-group">
+                <label for="input-name">Nombre del estudiante</label>
+                <input type="text" id="input-name" placeholder="Ingresa tu nombre..." autocomplete="off" />
+            </div>
+            <button id="btn-enter" class="btn-primary">Ingresar</button>
+            <p id="welcome-error" class="error-msg hidden"></p>
+        </div>
+    </div>
+
+    <!-- Vista: Evaluación Diagnóstica -->
+    <div id="view-diagnostic" class="view">
+        <div class="card">
+            <h2>Evaluación Diagnóstica</h2>
+            <p class="subtitle">Responde cada pregunta para determinar tu nivel.</p>
+            <p id="question-counter" class="question-counter"></p>
+            <p id="question-text" class="question-text"></p>
+            <div class="form-group">
+                <label for="input-answer">Tu respuesta</label>
+                <input type="text" id="input-answer" placeholder="Escribe tu respuesta..." autocomplete="off" />
+            </div>
+            <button id="btn-next" class="btn-primary">Siguiente</button>
+        </div>
+    </div>
+
+    <!-- Vista: Resultado del Diagnóstico -->
+    <div id="view-diagnostic-result" class="view">
+        <div class="card">
+            <h2>Resultado de la Evaluación</h2>
+            <div id="result-level-badge" class="level-badge"></div>
+            <p id="result-score" class="result-score"></p>
+            <button id="btn-continue" class="btn-primary">Ir al menú principal</button>
+        </div>
+    </div>
+
+    <!-- Vista: Dashboard -->
+    <div id="view-dashboard" class="view">
+        <div class="card">
+            <div class="dashboard-header">
+                <div>
+                    <h2 id="dashboard-name"></h2>
+                    <span id="dashboard-level" class="level-tag"></span>
+                </div>
+                <button id="btn-logout" class="btn-secondary">Cerrar sesión</button>
+            </div>
+            <div class="menu-grid">
+                <button class="menu-card" id="btn-explain">
+                    <span class="menu-icon">&#128214;</span>
+                    <span>Explicación</span>
+                </button>
+                <button class="menu-card" id="btn-exercises">
+                    <span class="menu-icon">&#128221;</span>
+                    <span>Ejercicios</span>
+                </button>
+                <button class="menu-card" id="btn-feedback">
+                    <span class="menu-icon">&#128172;</span>
+                    <span>Retroalimentación</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista: Explicación -->
+    <div id="view-explain" class="view">
+        <div class="card">
+            <button class="btn-back" id="back-explain">&#8592; Volver</button>
+            <h2>Explicación Personalizada</h2>
+            <div class="form-group">
+                <label for="input-topic-explain">Tema</label>
+                <input type="text" id="input-topic-explain" placeholder="Ej: ecuaciones con paréntesis" />
+            </div>
+            <button id="btn-generate-explain" class="btn-primary">Generar explicación</button>
+            <div id="result-explain" class="result-box hidden"></div>
+        </div>
+    </div>
+
+    <!-- Vista: Ejercicios -->
+    <div id="view-exercises" class="view">
+        <div class="card">
+            <button class="btn-back" id="back-exercises">&#8592; Volver</button>
+            <h2>Ejercicios de Práctica</h2>
+            <div class="form-group">
+                <label for="input-topic-exercises">Tema</label>
+                <input type="text" id="input-topic-exercises" placeholder="Ej: ecuaciones lineales" />
+            </div>
+            <button id="btn-generate-exercises" class="btn-primary">Generar ejercicios</button>
+            <div id="result-exercises" class="result-box hidden"></div>
+        </div>
+    </div>
+
+    <!-- Vista: Retroalimentación -->
+    <div id="view-feedback" class="view">
+        <div class="card">
+            <button class="btn-back" id="back-feedback">&#8592; Volver</button>
+            <h2>Retroalimentación</h2>
+            <div class="form-group">
+                <label for="input-student-answer">Tu respuesta</label>
+                <input type="text" id="input-student-answer" placeholder="Tu respuesta al ejercicio..." />
+            </div>
+            <div class="form-group">
+                <label for="input-correct-answer">Respuesta correcta</label>
+                <input type="text" id="input-correct-answer" placeholder="La respuesta correcta..." />
+            </div>
+            <button id="btn-generate-feedback" class="btn-primary">Obtener retroalimentación</button>
+            <div id="result-feedback" class="result-box hidden"></div>
+        </div>
+    </div>
+
+    <script src="/frontend/app.js"></script>
+</body>
+</html>
