@@ -1,0 +1,267 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+/* --- Vistas --- */
+
+.view {
+    display: none;
+    width: 100%;
+    max-width: 560px;
+}
+
+.view.active {
+    display: block;
+}
+
+/* --- Tarjeta base --- */
+
+.card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+h1 {
+    font-size: 1.75rem;
+    color: #1a2e4a;
+    margin-bottom: 6px;
+}
+
+h2 {
+    font-size: 1.35rem;
+    color: #1a2e4a;
+    margin-bottom: 6px;
+}
+
+.subtitle {
+    color: #6b7c93;
+    font-size: 0.92rem;
+    margin-bottom: 28px;
+}
+
+/* --- Formulario --- */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    color: #3d4f63;
+    font-size: 0.88rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #d1dce8;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1a2e4a;
+    outline: none;
+    transition: border-color 0.2s;
+    background: #fdfdfd;
+}
+
+input[type="text"]:focus {
+    border-color: #2563eb;
+    background: #fff;
+}
+
+/* --- Botones --- */
+
+.btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.97rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-primary:hover {
+    background: #1d4ed8;
+}
+
+.btn-primary:disabled {
+    background: #93b4f0;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    padding: 8px 16px;
+    background: transparent;
+    color: #6b7c93;
+    border: 1.5px solid #d1dce8;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.btn-back {
+    background: none;
+    border: none;
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0;
+    margin-bottom: 20px;
+    display: block;
+}
+
+.btn-back:hover {
+    text-decoration: underline;
+}
+
+/* --- Mensajes --- */
+
+.error-msg {
+    color: #dc2626;
+    font-size: 0.87rem;
+    margin-top: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* --- Dashboard --- */
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+
+.level-tag {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    background: #dbeafe;
+    color: #1d4ed8;
+    margin-top: 5px;
+}
+
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+}
+
+.menu-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 24px 10px;
+    background: #f8fafc;
+    border: 1.5px solid #e2eaf3;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #1a2e4a;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.menu-card:hover {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.menu-icon {
+    font-size: 1.8rem;
+}
+
+/* --- Diagnóstico --- */
+
+.question-counter {
+    font-size: 0.82rem;
+    color: #6b7c93;
+    margin-bottom: 12px;
+}
+
+.question-text {
+    font-size: 1rem;
+    color: #1a2e4a;
+    font-weight: 500;
+    margin-bottom: 22px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid #2563eb;
+    line-height: 1.5;
+}
+
+/* --- Resultado diagnóstico --- */
+
+.level-badge {
+    text-align: center;
+    padding: 28px;
+    margin: 20px 0 10px;
+    border-radius: 10px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.result-score {
+    text-align: center;
+    color: #6b7c93;
+    font-size: 0.95rem;
+    margin-bottom: 24px;
+}
+
+/* --- Caja de resultado del LLM --- */
+
+.result-box {
+    margin-top: 24px;
+    padding: 20px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1.5px solid #e2eaf3;
+    color: #1a2e4a;
+    font-size: 0.93rem;
+    line-height: 1.75;
+    white-space: pre-wrap;
+}
+
+.result-box.loading {
+    color: #6b7c93;
+    font-style: italic;
+    text-align: center;
+}
