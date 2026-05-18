@@ -1,0 +1,29 @@
+ECUACIONES DE DOS PASOS - NIVEL INTERMEDIO
+
+Requieren dos operaciones para despejar la variable.
+
+Ejemplo: 2x + 5 = 15
+Paso a paso:
+1. Primero restar la constante: 2x + 5 - 5 = 15 - 5
+2. 2x = 10
+3. Luego dividir: x = 10/2
+4. x = 5
+
+Más ejemplos:
+- 3x + 4 = 19   →  3x = 15  →  x = 5
+- 4x - 3 = 13   →  4x = 16  →  x = 4
+- 5x + 7 = 32   →  5x = 25  →  x = 5
+- 2x - 8 = 4    →  2x = 12  →  x = 6
+- 3x + 9 = 24   →  3x = 15  →  x = 5
+
+Ejemplos con resta primero:
+- 4x - 5 = 11   →  4x = 16  →  x = 4
+- 5x - 8 = 17   →  5x = 25  →  x = 5
+- 6x - 4 = 20   →  6x = 24  →  x = 4
+
+Ejercicios:
+1. 2x + 3 = 13   → respuesta: 5
+2. 3x - 2 = 10   → respuesta: 4
+3. 4x + 5 = 21   → respuesta: 4
+4. 5x - 3 = 22   → respuesta: 5
+5. 2x + 9 = 19   → respuesta: 5

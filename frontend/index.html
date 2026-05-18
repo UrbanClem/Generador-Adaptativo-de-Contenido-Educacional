@@ -3,51 +3,70 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema Educativo Adaptativo</title>
-    <link rel="stylesheet" href="/frontend/style.css" />
+    <title>Sistema Educativo Adaptativo con IA</title>
+    <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
 
-    <!-- Vista: Bienvenida -->
+    <!-- ========== LOADER GLOBAL ========== -->
+    <div id="global-loader" class="global-loader hidden">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p>Generando respuesta con IA...</p>
+            <p class="loader-hint">Esto puede tomar unos segundos</p>
+        </div>
+    </div>
+
+    <!-- ========== VISTA: BIENVENIDA ========== -->
     <div id="view-welcome" class="view active">
         <div class="card">
-            <h1>Sistema Educativo Adaptativo</h1>
-            <p class="subtitle">Ecuaciones de Primer Grado</p>
+            <h1>📚 Sistema Educativo Adaptativo</h1>
+            <p class="subtitle">Aprendizaje personalizado con Inteligencia Artificial</p>
             <div class="form-group">
                 <label for="input-name">Nombre del estudiante</label>
                 <input type="text" id="input-name" placeholder="Ingresa tu nombre..." autocomplete="off" />
             </div>
-            <button id="btn-enter" class="btn-primary">Ingresar</button>
+            <button id="btn-enter" class="btn-primary">Comenzar</button>
             <p id="welcome-error" class="error-msg hidden"></p>
         </div>
     </div>
 
-    <!-- Vista: Evaluación Diagnóstica -->
-    <div id="view-diagnostic" class="view">
+    <!-- ========== VISTA: DIAGNÓSTICO ADAPTATIVO CON IA ========== -->
+    <div id="view-adaptive-diagnostic" class="view">
         <div class="card">
-            <h2>Evaluación Diagnóstica</h2>
-            <p class="subtitle">Responde cada pregunta para determinar tu nivel.</p>
-            <p id="question-counter" class="question-counter"></p>
-            <p id="question-text" class="question-text"></p>
+            <h2>🎯 Diagnóstico Adaptativo con IA</h2>
+            <p class="subtitle">Las preguntas se ajustan a tu nivel en tiempo real</p>
+            
+            <div id="adaptive-progress" class="adaptive-progress"></div>
+            <div id="adaptive-level-info" class="adaptive-level-info"></div>
+            
+            <p id="adaptive-question-counter" class="question-counter"></p>
+            <p id="adaptive-question-text" class="question-text"></p>
+            
             <div class="form-group">
-                <label for="input-answer">Tu respuesta</label>
-                <input type="text" id="input-answer" placeholder="Escribe tu respuesta..." autocomplete="off" />
+                <label for="adaptive-answer-input">Tu respuesta</label>
+                <input type="text" id="adaptive-answer-input" placeholder="Escribe tu respuesta..." autocomplete="off" />
             </div>
-            <button id="btn-next" class="btn-primary">Siguiente</button>
+            
+            <div id="adaptive-scaffolding-hint" class="scaffolding-hint hidden"></div>
+            <div id="adaptive-feedback" class="feedback-box hidden"></div>
+            
+            <button id="btn-submit-adaptive" class="btn-primary">Enviar respuesta</button>
+            <button id="btn-cancel-diagnostic" class="btn-secondary" style="margin-top: 10px;">Cancelar</button>
         </div>
     </div>
 
-    <!-- Vista: Resultado del Diagnóstico -->
+    <!-- ========== VISTA: RESULTADO DEL DIAGNÓSTICO ========== -->
     <div id="view-diagnostic-result" class="view">
         <div class="card">
-            <h2>Resultado de la Evaluación</h2>
+            <h2>📊 Resultado de la Evaluación</h2>
             <div id="result-level-badge" class="level-badge"></div>
             <p id="result-score" class="result-score"></p>
             <button id="btn-continue" class="btn-primary">Ir al menú principal</button>
         </div>
     </div>
 
-    <!-- Vista: Dashboard -->
+    <!-- ========== VISTA: DASHBOAD / MENÚ PRINCIPAL ========== -->
     <div id="view-dashboard" class="view">
         <div class="card">
             <div class="dashboard-header">
@@ -59,67 +78,52 @@
             </div>
             <div class="menu-grid">
                 <button class="menu-card" id="btn-explain">
-                    <span class="menu-icon">&#128214;</span>
+                    <span class="menu-icon">📖</span>
                     <span>Explicación</span>
                 </button>
                 <button class="menu-card" id="btn-exercises">
-                    <span class="menu-icon">&#128221;</span>
+                    <span class="menu-icon">📝</span>
                     <span>Ejercicios</span>
-                </button>
-                <button class="menu-card" id="btn-feedback">
-                    <span class="menu-icon">&#128172;</span>
-                    <span>Retroalimentación</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Vista: Explicación -->
+    <!-- ========== VISTA: EXPLICACIÓN PERSONALIZADA ========== -->
     <div id="view-explain" class="view">
         <div class="card">
-            <button class="btn-back" id="back-explain">&#8592; Volver</button>
-            <h2>Explicación Personalizada</h2>
+            <button class="btn-back" id="back-explain">← Volver</button>
+            <h2>📖 Explicación Personalizada</h2>
             <div class="form-group">
                 <label for="input-topic-explain">Tema</label>
-                <input type="text" id="input-topic-explain" placeholder="Ej: ecuaciones con paréntesis" />
+                <input type="text" id="input-topic-explain" placeholder="Ej: Teorema de Pitágoras, Ecuaciones de primer grado..." />
             </div>
             <button id="btn-generate-explain" class="btn-primary">Generar explicación</button>
             <div id="result-explain" class="result-box hidden"></div>
         </div>
     </div>
 
-    <!-- Vista: Ejercicios -->
+    <!-- ========== VISTA: EJERCICIOS DE PRÁCTICA ========== -->
     <div id="view-exercises" class="view">
         <div class="card">
-            <button class="btn-back" id="back-exercises">&#8592; Volver</button>
-            <h2>Ejercicios de Práctica</h2>
+            <button class="btn-back" id="back-exercises">← Volver</button>
+            <h2>✍️ Ejercicios de Práctica</h2>
+            <p class="subtitle">Resuelve los ejercicios y recibe retroalimentación</p>
+            
             <div class="form-group">
                 <label for="input-topic-exercises">Tema</label>
                 <input type="text" id="input-topic-exercises" placeholder="Ej: ecuaciones lineales" />
             </div>
+            
             <button id="btn-generate-exercises" class="btn-primary">Generar ejercicios</button>
-            <div id="result-exercises" class="result-box hidden"></div>
+            
+            <!-- Contenedor de ejercicios -->
+            <div id="exercises-container" class="exercises-container hidden"></div>
+            
+            <!-- Resultados -->
+            <div id="exercises-results" class="result-box hidden"></div>
         </div>
     </div>
-
-    <!-- Vista: Retroalimentación -->
-    <div id="view-feedback" class="view">
-        <div class="card">
-            <button class="btn-back" id="back-feedback">&#8592; Volver</button>
-            <h2>Retroalimentación</h2>
-            <div class="form-group">
-                <label for="input-student-answer">Tu respuesta</label>
-                <input type="text" id="input-student-answer" placeholder="Tu respuesta al ejercicio..." />
-            </div>
-            <div class="form-group">
-                <label for="input-correct-answer">Respuesta correcta</label>
-                <input type="text" id="input-correct-answer" placeholder="La respuesta correcta..." />
-            </div>
-            <button id="btn-generate-feedback" class="btn-primary">Obtener retroalimentación</button>
-            <div id="result-feedback" class="result-box hidden"></div>
-        </div>
-    </div>
-
     <script src="/frontend/app.js"></script>
 </body>
 </html>

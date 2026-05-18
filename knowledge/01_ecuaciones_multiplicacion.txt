@@ -1,0 +1,27 @@
+ECUACIONES CON MULTIPLICACIÓN - NIVEL INTERMEDIO
+
+Cuando la variable está multiplicada por un número, dividimos ambos lados.
+
+Ejemplo: 3x = 24
+Paso a paso:
+1. Identificar: 3 multiplica a x
+2. Dividir ambos lados entre 3: (3x)/3 = 24/3
+3. x = 8
+
+Más ejemplos:
+- 4x = 32  →  x = 32/4  →  x = 8
+- 5x = 45  →  x = 45/5  →  x = 9
+- 6x = 54  →  x = 54/6  →  x = 9
+- 2x = 18  →  x = 18/2  →  x = 9
+
+Con fracciones:
+- x/3 = 6   →  x = 6 * 3  →  x = 18
+- x/4 = 7   →  x = 7 * 4  →  x = 28
+- x/5 = 9   →  x = 9 * 5  →  x = 45
+
+Ejercicios (nivel intermedio):
+1. 3x = 27   → respuesta: 9
+2. 4x = 36   → respuesta: 9
+3. x/2 = 8   → respuesta: 16
+4. 5x = 40   → respuesta: 8
+5. x/6 = 4   → respuesta: 24

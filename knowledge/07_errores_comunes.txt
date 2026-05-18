@@ -1,0 +1,28 @@
+ERRORES COMUNES EN ECUACIONES - PARA EL TUTOR IA
+
+Error 1: Olvidar aplicar la operación en ambos lados
+Incorrecto: x + 3 = 7 → x = 7
+Correcto: x + 3 = 7 → x = 7 - 3 → x = 4
+
+Error 2: Signos incorrectos al pasar términos
+Incorrecto: 2x - 5 = 9 → 2x = 9 - 5
+Correcto: 2x - 5 = 9 → 2x = 9 + 5
+
+Error 3: No distribuir correctamente
+Incorrecto: 2(x + 3) = 14 → 2x + 3 = 14
+Correcto: 2(x + 3) = 14 → 2x + 6 = 14
+
+Error 4: Dividir antes de sumar/restar
+Incorrecto: 2x + 5 = 15 → x + 5 = 7.5
+Correcto: 2x + 5 = 15 → 2x = 10 → x = 5
+
+Error 5: Confundir hipotenusa con catetos en Pitágoras
+Incorrecto: c² = a² + b² (para calcular cateto)
+Correcto: a² = c² - b² (para calcular cateto)
+
+CÓMO CORREGIR CADA ERROR:
+- Para Error 1: "Recuerda que siempre debes hacer la misma operación en ambos lados"
+- Para Error 2: "Cuando un número pasa al otro lado, su signo cambia"
+- Para Error 3: "Aplica la propiedad distributiva: multiplica el número fuera del paréntesis por CADA término dentro"
+- Para Error 4: "Primero resuelve la suma/resta, luego la multiplicación/división"
+- Para Error 5: "La hipotenusa es el lado más largo. Para calcular un cateto, resta los cuadrados"

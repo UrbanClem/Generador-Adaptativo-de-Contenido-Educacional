@@ -1,0 +1,36 @@
+TEOREMA DE PITÁGORAS
+
+El Teorema de Pitágoras se aplica a triángulos rectángulos (un ángulo de 90 grados).
+
+Fórmula: a² + b² = c²
+Donde:
+- a y b son los catetos (lados que forman el ángulo recto)
+- c es la hipotenusa (el lado más largo, opuesto al ángulo recto)
+
+Ejemplo clásico: triángulo de 3, 4, 5
+3² + 4² = 5²
+9 + 16 = 25
+
+Cómo calcular la hipotenusa (c):
+c = √(a² + b²)
+
+Ejemplo: a = 3, b = 4
+c = √(9 + 16) = √25 = 5
+
+Cómo calcular un cateto (a):
+a = √(c² - b²)
+
+Ejemplo: c = 5, b = 4
+a = √(25 - 16) = √9 = 3
+
+Ejemplos resueltos:
+1. a = 5, b = 12 → c = √(25 + 144) = √169 = 13
+2. c = 10, b = 6 → a = √(100 - 36) = √64 = 8
+3. a = 8, b = 15 → c = √(64 + 225) = √289 = 17
+
+Ejercicios:
+1. a = 6, b = 8 → hipotenusa: 10
+2. c = 13, a = 5 → cateto b: 12
+3. a = 9, b = 12 → hipotenusa: 15
+4. c = 25, a = 7 → cateto b: 24
+5. a = 10, b = 24 → hipotenusa: 26

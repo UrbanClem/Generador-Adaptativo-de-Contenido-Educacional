@@ -1,0 +1,2 @@
+Las ecuaciones de primer grado con paréntesis requieren aplicar la propiedad distributiva.
+Ejemplo: 2(x - 3) = 8 → 2x - 6 = 8 → 2x = 14 → x = 7

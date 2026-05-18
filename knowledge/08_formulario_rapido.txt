@@ -1,0 +1,38 @@
+FORMULARIO RÁPIDO - REFERENCIA PARA IA
+
+ECUACIONES DE PRIMER GRADO:
+
+Tipo 1: x + a = b
+Solución: x = b - a
+Ejemplo: x + 5 = 12 → x = 7
+
+Tipo 2: x - a = b
+Solución: x = b + a
+Ejemplo: x - 3 = 8 → x = 11
+
+Tipo 3: ax = b
+Solución: x = b / a
+Ejemplo: 4x = 20 → x = 5
+
+Tipo 4: ax + b = c
+Solución: ax = c - b → x = (c - b)/a
+Ejemplo: 3x + 4 = 19 → 3x = 15 → x = 5
+
+Tipo 5: ax - b = c
+Solución: ax = c + b → x = (c + b)/a
+Ejemplo: 5x - 3 = 22 → 5x = 25 → x = 5
+
+Tipo 6: a(x + b) = c
+Solución: ax + ab = c → ax = c - ab → x = (c - ab)/a
+Ejemplo: 2(x + 3) = 14 → 2x + 6 = 14 → 2x = 8 → x = 4
+
+Tipo 7: ax + b = cx + d
+Solución: ax - cx = d - b → x(a - c) = d - b → x = (d - b)/(a - c)
+Ejemplo: 3x + 4 = 2x + 10 → x = 6
+
+TEOREMA DE PITÁGORAS:
+- Hipotenusa: c = √(a² + b²)
+- Cateto: a = √(c² - b²)
+
+TRIPLES PITAGÓRICOS COMUNES:
+3-4-5, 5-12-13, 7-24-25, 8-15-17, 9-40-41, 11-60-61

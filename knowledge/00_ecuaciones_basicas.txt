@@ -1,0 +1,27 @@
+ECUACIONES DE PRIMER GRADO - NIVEL BÁSICO
+
+Una ecuación de primer grado es una igualdad matemática con una variable (letra) cuyo exponente es 1.
+
+Estructura básica: variable + constante = constante
+Ejemplo: x + 3 = 7
+
+Regla fundamental: Lo que se hace de un lado, debe hacerse del otro lado.
+
+Paso a paso para resolver x + 3 = 7:
+1. Identificar la variable: x
+2. Queremos dejar x sola. El 3 está sumando, pasa al otro lado restando
+3. x = 7 - 3
+4. x = 4
+
+Más ejemplos básicos:
+- x + 5 = 12  →  x = 12 - 5  →  x = 7
+- y - 4 = 9   →  y = 9 + 4   →  y = 13
+- a + 8 = 20  →  a = 20 - 8  →  a = 12
+- b - 7 = 3   →  b = 3 + 7   →  b = 10
+
+Ejercicios de práctica (nivel básico):
+1. x + 2 = 10   → respuesta: 8
+2. y + 6 = 15   → respuesta: 9
+3. a - 3 = 8    → respuesta: 11
+4. b - 5 = 12   → respuesta: 17
+5. c + 9 = 21   → respuesta: 12

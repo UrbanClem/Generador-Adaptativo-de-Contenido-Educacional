@@ -1,0 +1,3 @@
+El Teorema de Pitágoras establece que en un triángulo rectángulo, el cuadrado de la hipotenusa (el lado opuesto al ángulo recto) es igual a la suma de los cuadrados de los catetos.
+Fórmula: a² + b² = c²
+Ejemplo: Si los catetos miden 3 y 4, la hipotenusa es √(9+16)=√25=5

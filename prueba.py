@@ -4,7 +4,7 @@ try:
     conexion = psycopg2.connect(
         dbname="rag_education",
         user="postgres",
-        password="tu_contraseña",
+        password="admin",
         host="localhost",
         port="5432"
     )

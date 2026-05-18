@@ -1,0 +1,26 @@
+ECUACIONES CON PARÉNTESIS - NIVEL AVANZADO
+
+Primero aplicar propiedad distributiva.
+
+Ejemplo: 3(x - 2) = 15
+Paso a paso:
+1. Aplicar distributiva: 3x - 6 = 15
+2. Sumar 6: 3x = 21
+3. Dividir: x = 7
+
+Más ejemplos:
+- 2(x + 3) = 14   →  2x + 6 = 14  →  2x = 8  →  x = 4
+- 4(x - 1) = 12   →  4x - 4 = 12  →  4x = 16  →  x = 4
+- 5(x + 2) = 20   →  5x + 10 = 20 →  5x = 10  →  x = 2
+- 3(x - 4) = 9    →  3x - 12 = 9  →  3x = 21  →  x = 7
+
+Con números negativos:
+- 2(x - 5) = 8    →  2x - 10 = 8  →  2x = 18  →  x = 9
+- 4(x + 1) = 16   →  4x + 4 = 16  →  4x = 12  →  x = 3
+
+Ejercicios:
+1. 2(x + 4) = 16   → respuesta: 4
+2. 3(x - 1) = 12   → respuesta: 5
+3. 4(x + 2) = 24   → respuesta: 4
+4. 5(x - 3) = 10   → respuesta: 5
+5. 2(x - 6) = 8    → respuesta: 10
