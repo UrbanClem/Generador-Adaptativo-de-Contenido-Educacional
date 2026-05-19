@@ -8,6 +8,9 @@ let currentDiagnosticSession = null;
 let diagnosticStartTime = null;
 let currentQuestionsBatch = [];
 let currentQuestionBatchIndex = 0;
+let currentExercises = [];
+let exerciseAnswers = [];
+let exerciseResults = [];
 
 const LEVEL_LABELS = { basico: "Básico", intermedio: "Intermedio", avanzado: "Avanzado" };
 
@@ -25,13 +28,15 @@ function hideLoader() {
 // ========== NAVEGACIÓN ==========
 function showView(id) {
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    document.getElementById(id).classList.add("active");
+    const targetView = document.getElementById(id);
+    if (targetView) targetView.classList.add("active");
 }
 
 // ========== VISTA: BIENVENIDA / LOGIN ==========
 async function login() {
     const name = document.getElementById('input-name').value.trim();
     const errorEl = document.getElementById('welcome-error');
+    if (!errorEl) return;
     errorEl.classList.add('hidden');
 
     if (!name) {
@@ -41,24 +46,18 @@ async function login() {
 
     showLoader(true);
     try {
-        // Primero verificar si el estudiante ya existe
         const res = await fetch(`/students/${encodeURIComponent(name)}`);
         
         if (res.ok) {
             currentStudent = await res.json();
             loadDashboard();
         } else if (res.status === 404) {
-            // Estudiante nuevo: NO crear aún, primero probar diagnóstico
-            // Guardar nombre temporalmente
             currentStudentName = name;
             
-            // Probar inicio de diagnóstico para verificar que la IA funciona
             const testRes = await fetch('/diagnostic/test', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    student_name: name 
-                })
+                body: JSON.stringify({ student_name: name })
             });
             
             if (!testRes.ok) {
@@ -68,15 +67,10 @@ async function login() {
                 return;
             }
             
-            // Si el test funciona, crear estudiante
             const createRes = await fetch('/students', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    name: name, 
-                    level: 'basico', 
-                    diagnostic_results: {} 
-                })
+                body: JSON.stringify({ name: name, level: 'basico', diagnostic_results: {} })
             });
             
             if (!createRes.ok) {
@@ -97,12 +91,16 @@ async function login() {
     }
 }
 
-document.getElementById("btn-enter").addEventListener("click", login);
-document.getElementById("input-name").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") login();
-});
+// ========== DASHBOARD ==========
+function loadDashboard() {
+    const nameEl = document.getElementById('dashboard-name');
+    const levelEl = document.getElementById('dashboard-level');
+    if (nameEl) nameEl.textContent = `Bienvenido, ${currentStudent.name}`;
+    if (levelEl) levelEl.textContent = LEVEL_LABELS[currentStudent.level] || currentStudent.level;
+    showView("view-dashboard");
+}
 
-// ========== DIAGNÓSTICO ADAPTATIVO CON IA ==========
+// ========== DIAGNÓSTICO ADAPTATIVO ==========
 async function startAdaptiveDiagnostic() {
     if (!currentStudent || !currentStudent.id) {
         console.error("No hay estudiante logueado");
@@ -136,8 +134,10 @@ async function startAdaptiveDiagnostic() {
             displayAdaptiveQuestion(currentQuestionsBatch[0], 1, currentQuestionsBatch.length);
         }
         
-        document.getElementById('adaptive-level-info').innerHTML = `Nivel actual: ${data.current_level}`;
-        document.getElementById('adaptive-progress').textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
+        const levelInfoEl = document.getElementById('adaptive-level-info');
+        const progressEl = document.getElementById('adaptive-progress');
+        if (levelInfoEl) levelInfoEl.innerHTML = `Nivel actual: ${data.current_level}`;
+        if (progressEl) progressEl.textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
         
         showView('view-adaptive-diagnostic');
     } catch (error) {
@@ -149,25 +149,34 @@ async function startAdaptiveDiagnostic() {
 }
 
 function displayAdaptiveQuestion(question, index, total) {
-    document.getElementById('adaptive-question-counter').textContent = `Pregunta ${index} de ${total}`;
-    document.getElementById('adaptive-question-text').textContent = question.pregunta;
-    document.getElementById('adaptive-answer-input').value = '';
-    document.getElementById('adaptive-answer-input').focus();
-    
+    const counterEl = document.getElementById('adaptive-question-counter');
+    const textEl = document.getElementById('adaptive-question-text');
+    const answerInput = document.getElementById('adaptive-answer-input');
     const hintContainer = document.getElementById('adaptive-scaffolding-hint');
-    if (question.scaffolding_hint) {
-        hintContainer.textContent = `💡 Pista: ${question.scaffolding_hint}`;
-        hintContainer.classList.remove('hidden');
-    } else {
-        hintContainer.classList.add('hidden');
+    const feedbackDiv = document.getElementById('adaptive-feedback');
+    
+    if (counterEl) counterEl.textContent = `Pregunta ${index} de ${total}`;
+    if (textEl) textEl.textContent = question.pregunta;
+    if (answerInput) {
+        answerInput.value = '';
+        answerInput.focus();
     }
     
-    const feedbackDiv = document.getElementById('adaptive-feedback');
-    feedbackDiv.classList.add('hidden');
+    if (hintContainer) {
+        if (question.scaffolding_hint) {
+            hintContainer.textContent = `💡 Pista: ${question.scaffolding_hint}`;
+            hintContainer.classList.remove('hidden');
+        } else {
+            hintContainer.classList.add('hidden');
+        }
+    }
+    
+    if (feedbackDiv) feedbackDiv.classList.add('hidden');
 }
 
 async function submitAdaptiveAnswer() {
-    const answer = document.getElementById('adaptive-answer-input').value.trim();
+    const answerInput = document.getElementById('adaptive-answer-input');
+    const answer = answerInput ? answerInput.value.trim() : '';
     if (!answer) {
         alert("Por favor ingresa una respuesta");
         return;
@@ -176,16 +185,19 @@ async function submitAdaptiveAnswer() {
     const currentQuestion = currentQuestionsBatch[currentQuestionBatchIndex];
     const responseTime = (Date.now() - diagnosticStartTime) / 1000;
     
-    // === DESHABILITAR BOTÓN ===
     const submitBtn = document.getElementById('btn-submit-adaptive');
     const cancelBtn = document.getElementById('btn-cancel-diagnostic');
     
-    submitBtn.disabled = true;
-    submitBtn.style.opacity = '0.6';
-    submitBtn.style.cursor = 'not-allowed';
-    cancelBtn.disabled = true;
-    cancelBtn.style.opacity = '0.6';
-    cancelBtn.style.cursor = 'not-allowed';
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.6';
+        submitBtn.style.cursor = 'not-allowed';
+    }
+    if (cancelBtn) {
+        cancelBtn.disabled = true;
+        cancelBtn.style.opacity = '0.6';
+        cancelBtn.style.cursor = 'not-allowed';
+    }
     
     showLoader(true);
     
@@ -205,22 +217,24 @@ async function submitAdaptiveAnswer() {
         const data = await res.json();
         
         const feedbackDiv = document.getElementById('adaptive-feedback');
-        if (data.is_correct) {
-            feedbackDiv.innerHTML = `✅ ¡Correcto! ${data.feedback?.reasoning || ''}`;
-            feedbackDiv.className = 'feedback-correct';
-        } else {
-            feedbackDiv.innerHTML = `❌ Incorrecto. La respuesta correcta era: ${currentQuestion.respuesta_esperada}<br>${data.feedback?.reasoning || ''}`;
-            feedbackDiv.className = 'feedback-incorrect';
+        if (feedbackDiv) {
+            if (data.is_correct) {
+                feedbackDiv.innerHTML = `✅ ¡Correcto! ${data.feedback?.reasoning || ''}`;
+                feedbackDiv.className = 'feedback-correct';
+            } else {
+                feedbackDiv.innerHTML = `❌ Incorrecto. La respuesta correcta era: ${currentQuestion.respuesta_esperada}<br>${data.feedback?.reasoning || ''}`;
+                feedbackDiv.className = 'feedback-incorrect';
+            }
+            feedbackDiv.classList.remove('hidden');
         }
-        feedbackDiv.classList.remove('hidden');
         
-        document.getElementById('adaptive-level-info').innerHTML = `
-            Nivel actual: ${data.current_level}<br>
-            Fortalezas: ${data.profile_feedback?.strengths?.slice(0, 2).join(', ') || 'Identificando...'}
-        `;
+        const levelInfoEl = document.getElementById('adaptive-level-info');
+        if (levelInfoEl) {
+            levelInfoEl.innerHTML = `Nivel actual: ${data.current_level}<br>Fortalezas: ${data.profile_feedback?.strengths?.slice(0, 2).join(', ') || 'Identificando...'}`;
+        }
         
         if (data.is_complete) {
-            feedbackDiv.innerHTML += '<br><br>🎉 ¡Diagnóstico completado! Redirigiendo al dashboard...';
+            if (feedbackDiv) feedbackDiv.innerHTML += '<br><br>🎉 ¡Diagnóstico completado! Redirigiendo al dashboard...';
             setTimeout(() => {
                 loadDashboard();
                 showView('view-dashboard');
@@ -234,116 +248,106 @@ async function submitAdaptiveAnswer() {
         
         if (currentQuestionBatchIndex < currentQuestionsBatch.length) {
             setTimeout(() => {
-                feedbackDiv.classList.add('hidden');
-                displayAdaptiveQuestion(
-                    currentQuestionsBatch[currentQuestionBatchIndex], 
-                    currentQuestionBatchIndex + 1, 
-                    currentQuestionsBatch.length
-                );
+                if (feedbackDiv) feedbackDiv.classList.add('hidden');
+                displayAdaptiveQuestion(currentQuestionsBatch[currentQuestionBatchIndex], currentQuestionBatchIndex + 1, currentQuestionsBatch.length);
                 diagnosticStartTime = Date.now();
-                // === REHABILITAR BOTÓN ===
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-                submitBtn.style.cursor = 'pointer';
-                cancelBtn.disabled = false;
-                cancelBtn.style.opacity = '1';
-                cancelBtn.style.cursor = 'pointer';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.style.opacity = '1';
+                    cancelBtn.style.cursor = 'pointer';
+                }
             }, 2000);
         } 
         else if (data.next_questions && data.next_questions.length > 0) {
             currentQuestionsBatch = data.next_questions;
             currentQuestionBatchIndex = 0;
             
-            if (data.next_round) {
+            if (data.next_round && currentDiagnosticSession) {
                 currentDiagnosticSession.round = data.next_round;
             }
-            document.getElementById('adaptive-progress').textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
+            const progressEl = document.getElementById('adaptive-progress');
+            if (progressEl && currentDiagnosticSession) {
+                progressEl.textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
+            }
             
             setTimeout(() => {
-                feedbackDiv.classList.add('hidden');
-                displayAdaptiveQuestion(
-                    currentQuestionsBatch[0], 
-                    1, 
-                    currentQuestionsBatch.length
-                );
+                if (feedbackDiv) feedbackDiv.classList.add('hidden');
+                displayAdaptiveQuestion(currentQuestionsBatch[0], 1, currentQuestionsBatch.length);
                 diagnosticStartTime = Date.now();
-                // === REHABILITAR BOTÓN ===
-                submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-                submitBtn.style.cursor = 'pointer';
-                cancelBtn.disabled = false;
-                cancelBtn.style.opacity = '1';
-                cancelBtn.style.cursor = 'pointer';
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = '1';
+                    submitBtn.style.cursor = 'pointer';
+                }
+                if (cancelBtn) {
+                    cancelBtn.disabled = false;
+                    cancelBtn.style.opacity = '1';
+                    cancelBtn.style.cursor = 'pointer';
+                }
             }, 2000);
         }
         
     } catch (error) {
         console.error("Error enviando respuesta:", error);
         alert("Error al procesar la respuesta. Intenta de nuevo.");
-        // === REHABILITAR BOTÓN EN CASO DE ERROR ===
-        submitBtn.disabled = false;
-        submitBtn.style.opacity = '1';
-        submitBtn.style.cursor = 'pointer';
-        cancelBtn.disabled = false;
-        cancelBtn.style.opacity = '1';
-        cancelBtn.style.cursor = 'pointer';
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.cursor = 'pointer';
+        }
     } finally {
         hideLoader();
     }
 }
 
-document.getElementById("btn-submit-adaptive").addEventListener("click", submitAdaptiveAnswer);
-document.getElementById("adaptive-answer-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submitAdaptiveAnswer();
-});
-document.getElementById("btn-cancel-diagnostic").addEventListener("click", () => {
-    currentDiagnosticSession = null;
-    showView("view-welcome");
-});
-
-// ========== DASHBOARD ==========
-function loadDashboard() {
-    document.getElementById("dashboard-name").textContent = `Bienvenido, ${currentStudent.name}`;
-    document.getElementById("dashboard-level").textContent = LEVEL_LABELS[currentStudent.level] || currentStudent.level;
-    showView("view-dashboard");
+// ========== EXPLICACIÓN PERSONALIZADA ==========
+async function generateExplanation() {
+    const topicInput = document.getElementById('input-topic-explain');
+    const topic = topicInput ? topicInput.value.trim() : '';
+    if (!topic) {
+        alert("Ingresa un tema");
+        return;
+    }
+    
+    showLoader(true);
+    const resultEl = document.getElementById('result-explain');
+    
+    try {
+        const res = await fetch('/explain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topic: topic, student_level: currentStudent.level })
+        });
+        const data = await res.json();
+        if (resultEl) {
+            resultEl.textContent = data.content || "Sin respuesta.";
+            resultEl.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        if (resultEl) {
+            resultEl.textContent = "Error al generar explicación.";
+            resultEl.classList.remove('hidden');
+        }
+    } finally {
+        hideLoader();
+    }
 }
 
-document.getElementById("btn-logout").addEventListener("click", () => {
-    currentStudent = null;
-    document.getElementById("input-name").value = "";
-    document.getElementById("welcome-error").classList.add("hidden");
-    showView("view-welcome");
-});
-
-// ========== NAVEGACIÓN DEL MENÚ ==========
-document.getElementById("btn-explain").addEventListener("click", () => showView("view-explain"));
-document.getElementById("btn-exercises").addEventListener("click", () => showView("view-exercises"));
-document.getElementById("btn-feedback").addEventListener("click", () => showView("view-feedback"));
-document.getElementById("back-explain").addEventListener("click", () => showView("view-dashboard"));
-document.getElementById("back-exercises").addEventListener("click", () => showView("view-dashboard"));
-document.getElementById("back-feedback").addEventListener("click", () => showView("view-dashboard"));
-
-// ========== EXPLICACIÓN PERSONALIZADA ==========
-document.getElementById("btn-generate-explain").addEventListener("click", async () => {
-    const topic = document.getElementById("input-topic-explain").value.trim();
-    if (!topic) return;
-    await callApi({
-        url: "/explain",
-        body: { topic, student_level: currentStudent.level },
-        btnId: "btn-generate-explain",
-        btnLabel: "Generar explicación",
-        resultId: "result-explain",
-    });
-});
-
 // ========== EJERCICIOS INTERACTIVOS ==========
-
-let currentExercises = [];
-let exerciseAnswers = [];
-let exerciseResults = [];
-
-document.getElementById("btn-generate-exercises").addEventListener("click", async () => {
-    const topic = document.getElementById("input-topic-exercises").value.trim();
+async function generateExercises() {
+    const topicInput = document.getElementById('input-topic-exercises');
+    const topic = topicInput ? topicInput.value.trim() : '';
     if (!topic) {
         alert("Ingresa un tema");
         return;
@@ -362,24 +366,58 @@ document.getElementById("btn-generate-exercises").addEventListener("click", asyn
             })
         });
         
-        const data = await res.json();
-        currentExercises = data.exercises;
-        exerciseAnswers = [];
-        exerciseResults = [];
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+        }
         
-        renderExercises();
+        const data = await res.json();
+        console.log("Ejercicios recibidos:", data);
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        if (data.exercises && Array.isArray(data.exercises) && data.exercises.length > 0) {
+            currentExercises = data.exercises;
+            exerciseAnswers = new Array(currentExercises.length).fill('');
+            exerciseResults = new Array(currentExercises.length).fill(undefined);
+            renderExercises();
+        } else {
+            throw new Error("El servidor no devolvió ejercicios válidos");
+        }
         
     } catch (error) {
         console.error("Error generando ejercicios:", error);
-        alert("Error al generar ejercicios");
+        const container = document.getElementById('exercises-container');
+        if (container) {
+            container.innerHTML = `<div class="error-message">❌ Error: ${error.message}<br><br>Intenta con otro tema o más tarde.</div>`;
+            container.classList.remove('hidden');
+        }
     } finally {
         hideLoader();
     }
-});
+}
+
+function formatMathText(text) {
+    if (!text) return '';
+    
+    // Convertir **texto** a <strong>texto</strong> (negritas)
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convertir *texto* a <em>texto</em> (cursiva)
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Convertir expresiones matemáticas como \( ... \) a formato legible
+    text = text.replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$1</span>');
+    text = text.replace(/\\\[(.*?)\\\]/g, '<span class="math-block">$1</span>');
+    
+    return text;
+}
 
 function renderExercises() {
     const container = document.getElementById('exercises-container');
-    const resultsDiv = document.getElementById('exercises-results');
+    if (!container) return;
     
     if (!currentExercises || currentExercises.length === 0) {
         container.innerHTML = '<p>No se generaron ejercicios. Intenta de nuevo.</p>';
@@ -404,19 +442,26 @@ function renderExercises() {
             feedbackText = `❌ Incorrecto. La respuesta correcta era: ${ex.respuesta_esperada}`;
         }
         
+        // Formatear pregunta y pista para eliminar asteriscos
+        const preguntaFormateada = formatMathText(ex.pregunta || '?');
+        const pistaFormateada = formatMathText(ex.pista || ex.scaffolding_hint || 'Resuelve paso a paso');
+        
+        const inputType = ex.is_math ? 'number' : 'text';
+        const inputStep = ex.is_math ? 'step="any"' : '';
+        const placeholder = ex.is_math ? 'Tu respuesta (solo número)' : 'Tu respuesta';
+        
         html += `
             <div class="exercise-item" data-index="${index}">
-                <div class="exercise-question">${index + 1}. ${ex.pregunta}</div>
-                <div class="exercise-hint">💡 Pista: ${ex.pista || 'Resuelve paso a paso'}</div>
-                <input type="number" class="exercise-input" id="answer-${index}" 
-                       placeholder="Tu respuesta" value="${userAnswer}" ${result !== undefined ? 'disabled' : ''}>
-                ${!result ? `<button class="btn-check-exercise" onclick="checkExercise(${index})">Verificar</button>` : ''}
+                <div class="exercise-question">${index + 1}. ${preguntaFormateada}</div>
+                <div class="exercise-hint">💡 Pista: ${pistaFormateada}</div>
+                <input type="${inputType}" ${inputStep} class="exercise-input" id="answer-${index}" 
+                       placeholder="${placeholder}" value="${userAnswer}" ${result !== undefined ? 'disabled' : ''}>
+                ${result === undefined ? `<button class="btn-check-exercise" onclick="checkExercise(${index})">Verificar</button>` : ''}
                 <div class="exercise-feedback ${feedbackClass}">${feedbackText}</div>
             </div>
         `;
     });
     
-    // Mostrar resumen si todos están respondidos
     const allAnswered = exerciseResults.length === currentExercises.length && 
                         exerciseResults.every(r => r !== undefined);
     
@@ -428,7 +473,7 @@ function renderExercises() {
             <div class="exercises-summary">
                 <h4>📊 Resumen</h4>
                 <p>Correctos: ${correctCount} de ${currentExercises.length}</p>
-                <p>Puntaje: ${score}%</p>
+                <p>Puntaje: ${score.toFixed(0)}%</p>
                 <button id="btn-retry-exercises" class="btn-primary" style="margin-top: 10px;">Generar nuevos ejercicios</button>
             </div>
         `;
@@ -436,105 +481,100 @@ function renderExercises() {
         setTimeout(() => {
             const retryBtn = document.getElementById('btn-retry-exercises');
             if (retryBtn) {
-                retryBtn.addEventListener('click', () => {
-                    document.getElementById("btn-generate-exercises").click();
-                });
+                retryBtn.addEventListener('click', generateExercises);
             }
         }, 100);
     }
     
     container.innerHTML = html;
     container.classList.remove('hidden');
-    resultsDiv.classList.add('hidden');
-    
-    // Agregar event listeners a los inputs
-    currentExercises.forEach((_, index) => {
-        const input = document.getElementById(`answer-${index}`);
-        if (input && exerciseResults[index] === undefined) {
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    checkExercise(index);
-                }
-            });
-        }
-    });
 }
 
 window.checkExercise = function(index) {
     const input = document.getElementById(`answer-${index}`);
-    const userAnswer = input.value.trim();
+    if (!input) return;
     
+    const userAnswer = input.value.trim();
     if (!userAnswer) {
         alert("Ingresa una respuesta");
         return;
     }
     
     const exercise = currentExercises[index];
-    const isCorrect = parseInt(userAnswer) === parseInt(exercise.respuesta_esperada);
+    if (!exercise) return;
+    
+    let isCorrect = false;
+    
+    if (exercise.is_math) {
+        // Comparación numérica con tolerancia para ejercicios de matemáticas
+        const studentNum = parseFloat(userAnswer);
+        const expectedNum = parseFloat(exercise.respuesta_esperada);
+        if (!isNaN(studentNum) && !isNaN(expectedNum)) {
+            isCorrect = Math.abs(studentNum - expectedNum) < 0.01;
+        }
+    } else {
+        // Comparación por texto para otros temas
+        isCorrect = userAnswer.toLowerCase() === String(exercise.respuesta_esperada).toLowerCase();
+    }
     
     exerciseAnswers[index] = userAnswer;
     exerciseResults[index] = isCorrect;
     
-    // Actualizar el perfil del estudiante con el resultado
-    updateStudentProgress(exercise.pregunta, isCorrect);
-    
     renderExercises();
 };
 
-async function updateStudentProgress(question, isCorrect) {
-    // Opcional: enviar al backend para actualizar el perfil del estudiante
-    try {
-        await fetch('/student/progress', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                student_id: currentStudent.id,
-                question: question,
-                is_correct: isCorrect,
-                topic: 'ejercicios'
-            })
-        });
-    } catch (error) {
-        console.error("Error actualizando progreso:", error);
-    }
-}
-
-// ========== FUNCIÓN GENÉRICA PARA LLAMADAS API ==========
-async function callApi({ url, body, btnId, btnLabel, resultId }) {
-    const btn = document.getElementById(btnId);
-    const resultEl = document.getElementById(resultId);
-
-    btn.disabled = true;
-    btn.textContent = "Generando...";
-    setResult(resultEl, "", true);
-    showLoader();
-
-    try {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-        });
-        const data = await res.json();
-        setResult(resultEl, data.content || data.detail || "Sin respuesta.");
-    } catch (error) {
-        setResult(resultEl, "Error al procesar la solicitud. Verifica que el servidor esté activo.");
-        console.error("API Error:", error);
-    } finally {
-        btn.disabled = false;
-        btn.textContent = btnLabel;
-        hideLoader();
-    }
-}
+// ========== INICIALIZAR EVENTOS ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // Botones de navegación
+    const btnEnter = document.getElementById('btn-enter');
+    if (btnEnter) btnEnter.addEventListener('click', login);
+    
+    const inputName = document.getElementById('input-name');
+    if (inputName) inputName.addEventListener('keydown', (e) => { if (e.key === "Enter") login(); });
+    
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) btnLogout.addEventListener('click', () => {
+        currentStudent = null;
+        const nameInput = document.getElementById('input-name');
+        if (nameInput) nameInput.value = "";
+        showView("view-welcome");
+    });
+    
+    const btnExplain = document.getElementById('btn-explain');
+    if (btnExplain) btnExplain.addEventListener('click', () => showView("view-explain"));
+    
+    const btnExercises = document.getElementById('btn-exercises');
+    if (btnExercises) btnExercises.addEventListener('click', () => showView("view-exercises"));
+    
+    const backExplain = document.getElementById('back-explain');
+    if (backExplain) backExplain.addEventListener('click', () => showView("view-dashboard"));
+    
+    const backExercises = document.getElementById('back-exercises');
+    if (backExercises) backExercises.addEventListener('click', () => showView("view-dashboard"));
+    
+    const btnGenerateExplain = document.getElementById('btn-generate-explain');
+    if (btnGenerateExplain) btnGenerateExplain.addEventListener('click', generateExplanation);
+    
+    const btnGenerateExercises = document.getElementById('btn-generate-exercises');
+    if (btnGenerateExercises) btnGenerateExercises.addEventListener('click', generateExercises);
+    
+    const btnSubmitAdaptive = document.getElementById('btn-submit-adaptive');
+    if (btnSubmitAdaptive) btnSubmitAdaptive.addEventListener('click', submitAdaptiveAnswer);
+    
+    const adaptiveAnswerInput = document.getElementById('adaptive-answer-input');
+    if (adaptiveAnswerInput) adaptiveAnswerInput.addEventListener('keydown', (e) => { if (e.key === "Enter") submitAdaptiveAnswer(); });
+    
+    const btnCancelDiagnostic = document.getElementById('btn-cancel-diagnostic');
+    if (btnCancelDiagnostic) btnCancelDiagnostic.addEventListener('click', () => {
+        currentDiagnosticSession = null;
+        showView("view-welcome");
+    });
+});
 
 // ========== HELPERS ==========
-function setResult(el, text, loading = false) {
-    el.textContent = text;
-    el.className = loading ? "result-box loading" : "result-box";
-    el.classList.remove("hidden");
-}
-
 function showError(el, msg) {
-    el.textContent = msg;
-    el.classList.remove("hidden");
+    if (el) {
+        el.textContent = msg;
+        el.classList.remove('hidden');
+    }
 }

@@ -10,7 +10,7 @@ from typing import List, Dict, Any
 from database import SessionLocal, CognitiveProfile
 
 # ========== CONFIGURACIÓN ==========
-MODEL_NAME = "mistral:latest"  # Usar Mistral (mejor calidad)
+MODEL_NAME = "mistral:latest"
 
 # ========== MATRIZ Q ==========
 ATTRIBUTES = {
@@ -78,7 +78,6 @@ class CognitiveDiagnosticProfile:
             "response_time": response_time
         })
         
-        # Actualizar nivel basado en respuestas recientes
         if len(self.response_history) >= 5:
             recent_correct = sum(1 for r in self.response_history[-8:] if r.get("is_correct", False))
             if recent_correct >= 6:
@@ -96,9 +95,9 @@ class CognitiveDiagnosticProfile:
     def get_feedback(self) -> Dict:
         return {
             "level": self.current_level,
-            "strengths": [ATTRIBUTES[a] for a, v in self.attribute_mastery.items() if v >= 0.7],
-            "developing": [ATTRIBUTES[a] for a in self.zpd_attributes],
-            "weaknesses": [ATTRIBUTES[a] for a, v in self.attribute_mastery.items() if v < 0.3]
+            "strengths": [],
+            "developing": [],
+            "weaknesses": []
         }
 
 
@@ -106,7 +105,7 @@ class CognitiveDiagnosticProfile:
 
 def solve_equation(equation: str):
     """
-    Resuelve ecuaciones de primer grado usando Python (NO IA)
+    Resuelve ecuaciones de primer grado como "4x - 7 = 19" → "6.5"
     """
     try:
         eq = equation.replace(" ", "").lower()
@@ -116,31 +115,44 @@ def solve_equation(equation: str):
         
         left, right = eq.split("=")
         
-        x_match = re.search(r'([+-]?\d*)(x)', left)
+        # Evaluar lado derecho
+        try:
+            right_val = eval(right)
+        except:
+            right_val = float(right) if right.replace('.', '').replace('-', '').isdigit() else None
+        
+        if right_val is None:
+            return None
+        
+        # Buscar término con x
+        x_match = re.search(r'([+-]?\d*\.?\d*)(x)', left)
         if not x_match:
             return None
         
+        # Coeficiente de x
         coef_str = x_match.group(1)
         if coef_str == "" or coef_str == "+":
-            x_term = 1
+            x_term = 1.0
         elif coef_str == "-":
-            x_term = -1
+            x_term = -1.0
         else:
-            x_term = int(coef_str)
+            x_term = float(coef_str)
         
+        # Extraer constante
         rest = left.replace(x_match.group(0), "")
         if rest == "" or rest == "+":
-            constant = 0
+            constant = 0.0
         elif rest.startswith("+"):
-            constant = int(rest[1:]) if rest[1:] else 0
+            constant = float(rest[1:]) if rest[1:] else 0.0
         else:
-            constant = int(rest) if rest else 0
+            constant = float(rest) if rest else 0.0
         
-        right_val = int(right)
+        # Resolver: ax + b = c → x = (c - b) / a
         result = (right_val - constant) / x_term
         
-        if result == int(result):
-            return str(int(result))
+        # Redondear si es necesario
+        if abs(result - round(result)) < 0.0001:
+            return str(int(round(result)))
         else:
             return str(round(result, 2))
             
@@ -149,24 +161,26 @@ def solve_equation(equation: str):
         return None
 
 
-# ========== GENERADOR DE PREGUNTAS SOLO CON IA ==========
+def get_hint_by_equation_type(equation: str) -> str:
+    """Genera hints sin revelar la respuesta"""
+    if "(" in equation and ")" in equation:
+        return "Aplica propiedad distributiva"
+    elif equation.count("x") > 1:
+        return "Agrupa términos con x"
+    else:
+        return "Despeja x paso a paso"
+
 
 def generate_adaptive_questions(profile: CognitiveDiagnosticProfile, num_questions: int = 3):
-    """
-    Genera preguntas usando SOLO IA.
-    Si la IA falla o da respuestas inválidas, LANZA EXCEPCIÓN.
-    """
+    """Genera preguntas usando SOLO IA - SIN FALLBACK"""
     
     target_level = profile.get_next_difficulty()
     
-    # Obtener preguntas ya usadas
     used_questions = [r.get("question", "") for r in profile.response_history if r.get("question")]
     
     forbidden = ""
     if used_questions:
-        forbidden = f"\n\n⚠️ PREGUNTAS PROHIBIDAS (NO LAS REPITAS):\n"
-        for q in used_questions[-15:]:
-            forbidden += f"- {q}\n"
+        forbidden = f"\n\n⚠️ PREGUNTAS PROHIBIDAS (NO LAS REPITAS):\n" + "\n".join(f"- {q}" for q in used_questions[-15:])
     
     prompt = f"""
 Eres un profesor de matemáticas. Genera {num_questions} ecuaciones de PRIMER GRADO.
@@ -176,46 +190,40 @@ Nivel: {target_level}
 {forbidden}
 
 REGLAS ESTRICTAS:
-- Usa el formato: "5x - 17 = 8" (SOLO la ecuación, sin texto extra)
+- Usa el formato: "2x + 3 = 11"
 - Variables solo 'x', números enteros entre 1 y 50
-- La respuesta debe ser un número entero
-- NO uses problemas de palabras
-- NO incluyas texto adicional fuera del JSON
+- NO uses asteriscos (*) en la pregunta
 
 RESPONDE SOLO CON UN JSON. FORMATO EXACTO:
 [
-    {{"pregunta": "2x + 3 = 11", "respuesta_esperada": "4"}}
+    {{"pregunta": "2x + 3 = 11"}}
 ]
 """
     
     response = ollama.chat(model=MODEL_NAME, messages=[{'role': 'user', 'content': prompt}])
     content = response['message']['content'].strip()
     
-    # Limpiar markdown
     content = re.sub(r'```json\s*', '', content)
     content = re.sub(r'```\s*', '', content)
     
     try:
         questions = json.loads(content)
     except json.JSONDecodeError as e:
-        raise Exception(f"La IA no devolvió JSON válido: {str(e)}. Respuesta: {content[:200]}")
+        raise Exception(f"La IA no devolvió JSON válido: {str(e)}")
     
-    if not questions or len(questions) == 0:
+    if not questions:
         raise Exception("La IA no generó preguntas")
     
     valid_questions = []
-    for i, q in enumerate(questions):
+    for q in questions:
         equation = q.get("pregunta", "")
         if not equation:
-            raise Exception(f"Pregunta {i+1} sin campo 'pregunta'")
+            raise Exception("Pregunta sin campo 'pregunta'")
         
-        # Calcular respuesta REAL con Python
         real_answer = solve_equation(equation)
-        
         if real_answer is None:
             raise Exception(f"No se pudo resolver la ecuación: {equation}")
         
-        # Verificar que la ecuación no esté repetida
         if equation in used_questions:
             raise Exception(f"Pregunta repetida: {equation}")
         
@@ -224,25 +232,14 @@ RESPONDE SOLO CON UN JSON. FORMATO EXACTO:
         q["nivel"] = target_level
         q["scaffolding_hint"] = get_hint_by_equation_type(equation)
         
+        q["pregunta"] = q["pregunta"].replace('*', '').replace('_', '')
+        
         valid_questions.append(q)
     
     if len(valid_questions) < num_questions:
-        raise Exception(f"Solo se generaron {len(valid_questions)} preguntas válidas de {num_questions}")
+        raise Exception(f"Solo se generaron {len(valid_questions)} preguntas válidas")
     
-    print(f"✅ Generadas {len(valid_questions)} preguntas con IA para nivel {target_level}")
     return valid_questions[:num_questions]
-
-
-def get_hint_by_equation_type(equation: str) -> str:
-    """Genera hints sin revelar la respuesta"""
-    if "(" in equation and ")" in equation:
-        return "Aplica la propiedad distributiva, luego resuelve paso a paso"
-    elif equation.count("x") > 1:
-        return "Agrupa los términos con x en un lado y las constantes en el otro"
-    elif "*" in equation or equation.count("x") == 1 and any(c.isdigit() for c in equation):
-        return "Aísla la variable dividiendo por el coeficiente"
-    else:
-        return "Realiza la operación inversa para despejar x"
 
 
 def generate_test_questions_only():
@@ -252,13 +249,10 @@ def generate_test_questions_only():
     try:
         response = ollama.chat(model=MODEL_NAME, messages=[{'role': 'user', 'content': test_prompt}])
         content = response['message']['content'].strip()
-        
-        # Verificar que la respuesta contiene un 4
         if '4' in content:
             return True
         else:
             raise Exception(f"La IA no respondió correctamente: {content}")
-            
     except Exception as e:
         raise Exception(f"IA no disponible: {str(e)}")
 
@@ -268,15 +262,12 @@ def evaluate_answer_semantic(question: str, student_answer, expected_answer) -> 
     student_clean = str(student_answer).strip().lower()
     expected_clean = str(expected_answer).strip().lower()
     
-    # Quitar "x=" si existe
     student_clean = re.sub(r'^x\s*=\s*', '', student_clean)
     expected_clean = re.sub(r'^x\s*=\s*', '', expected_clean)
     
-    # Quitar espacios
     student_clean = student_clean.replace(" ", "")
     expected_clean = expected_clean.replace(" ", "")
     
-    # Intentar convertir a número
     try:
         student_num = int(float(student_clean))
         expected_num = int(float(expected_clean))

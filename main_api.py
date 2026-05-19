@@ -2,11 +2,12 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from database import SessionLocal, Student, PrePostTest
 from rag_engine import load_knowledge_base
-from content_generator import generate_explanation, generate_exercises, give_feedback
+from content_generator import generate_explanation, generate_exercises, give_feedback, is_math_topic, normalize_numeric_answer
 from cognitive_diagnostic import CognitiveDiagnosticProfile, generate_adaptive_questions, evaluate_answer_semantic
 import time
 import os
 import json
+from datetime import datetime 
 
 app = Flask(__name__, static_folder='frontend', static_url_path='/frontend')
 CORS(app)
@@ -319,20 +320,40 @@ def explain():
 @app.route('/exercises', methods=['POST'])
 def exercises():
     """Genera ejercicios de práctica - formato estructurado para respuestas"""
-    data = request.json
+    data = request.get_json()
     topic = data.get('topic', 'matemáticas')
     student_level = data.get('student_level', 'basico')
     quantity = data.get('quantity', 3)
     
     from content_generator import generate_exercises_with_answers
-    exercises = generate_exercises_with_answers(topic, student_level, quantity)
+    exercises_list = generate_exercises_with_answers(topic, student_level, quantity)
+    
+    math_topic = is_math_topic(topic)
+    
+    # Asegurar que cada ejercicio tenga los campos necesarios
+    for ex in exercises_list:
+        if 'pregunta' not in ex:
+            ex['pregunta'] = 'Ecuación no disponible'
+        if 'respuesta_esperada' not in ex:
+            ex['respuesta_esperada'] = '0'
+        if 'pista' not in ex and 'scaffolding_hint' in ex:
+            ex['pista'] = ex['scaffolding_hint']
+        elif 'pista' not in ex:
+            ex['pista'] = 'Resuelve paso a paso'
+        
+        # Forzar respuestas numéricas para temas de matemáticas
+        if math_topic:
+            ex['respuesta_esperada'] = normalize_numeric_answer(ex['respuesta_esperada'])
+            ex['is_math'] = True
+        else:
+            ex['is_math'] = ex.get('is_math', False)
     
     return jsonify({
-        "exercises": exercises,
+        "exercises": exercises_list,
         "topic": topic,
-        "level": student_level
+        "level": student_level,
+        "is_math": math_topic
     })
-
 
 @app.route('/feedback', methods=['POST'])
 def feedback():
@@ -340,8 +361,21 @@ def feedback():
     student_answer = data.get('student_answer')
     correct_answer = data.get('correct_answer')
     student_level = data.get('student_level', 'basico')
-    feedback_text = give_feedback(student_answer, correct_answer, student_level)
-    return jsonify({"content": feedback_text, "is_correct": student_answer.strip() == correct_answer.strip()})
+    exercise_is_math = data.get('is_math', False)
+    
+    # Para ejercicios de matemáticas, comparar numéricamente
+    if exercise_is_math:
+        try:
+            student_num = float(str(student_answer).strip())
+            correct_num = float(str(correct_answer).strip())
+            is_correct = abs(student_num - correct_num) < 0.01
+        except (ValueError, TypeError):
+            is_correct = str(student_answer).strip() == str(correct_answer).strip()
+    else:
+        is_correct = str(student_answer).strip() == str(correct_answer).strip()
+    
+    feedback_text = give_feedback(student_answer, correct_answer, student_level, is_math=exercise_is_math)
+    return jsonify({"content": feedback_text, "is_correct": is_correct})
 
 # ========== ENDPOINTS DE MÉTRICAS ==========
 
