@@ -46,12 +46,15 @@
             <div class="form-group">
                 <label for="adaptive-answer-input">Tu respuesta</label>
                 <input type="text" id="adaptive-answer-input" placeholder="Escribe tu respuesta..." autocomplete="off" />
+                <small class="input-hint">📌 Si la respuesta es decimal, escribe solo las primeras dos cifras decimales (ej: 3.14)</small>
             </div>
             
             <div id="adaptive-scaffolding-hint" class="scaffolding-hint hidden"></div>
             <div id="adaptive-feedback" class="feedback-box hidden"></div>
             
+            <!-- Botones -->
             <button id="btn-submit-adaptive" class="btn-primary">Enviar respuesta</button>
+            <button id="btn-next-question" class="btn-primary hidden" style="background-color: #10b981;">Siguiente pregunta →</button>
             <button id="btn-cancel-diagnostic" class="btn-secondary" style="margin-top: 10px;">Cancelar</button>
         </div>
     </div>
@@ -96,10 +99,28 @@
             <h2>📖 Explicación Personalizada</h2>
             <div class="form-group">
                 <label for="input-topic-explain">Tema</label>
-                <input type="text" id="input-topic-explain" placeholder="Ej: Teorema de Pitágoras, Ecuaciones de primer grado..." />
+                <input type="text" id="input-topic-explain" placeholder="Ej: Teorema de Pitágoras..." />
             </div>
             <button id="btn-generate-explain" class="btn-primary">Generar explicación</button>
+            
+            <!-- Área de resultado -->
             <div id="result-explain" class="result-box hidden"></div>
+            
+            <!-- Área de retroalimentación (se muestra después de generar) -->
+            <div id="feedback-area" class="feedback-area hidden">
+                <h4>📝 ¿Qué te pareció esta explicación?</h4>
+                <div class="feedback-buttons">
+                    <button class="feedback-btn" data-feedback="me gusta">👍 Me gusta</button>
+                    <button class="feedback-btn" data-feedback="no entendi">🤔 No entendí</button>
+                    <button class="feedback-btn" data-feedback="mas ejemplos">📚 Más ejemplos</button>
+                    <button class="feedback-btn" data-feedback="mas corto">✂️ Más corto</button>
+                    <button class="feedback-btn" data-feedback="mas detallado">📖 Más detallado</button>
+                </div>
+                <div class="form-group">
+                    <textarea id="custom-feedback" rows="2" placeholder="O escribe tu propio comentario..."></textarea>
+                    <button id="submit-feedback" class="btn-secondary" style="margin-top: 10px;">Enviar retroalimentación</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -113,9 +134,13 @@
             <div class="form-group">
                 <label for="input-topic-exercises">Tema</label>
                 <input type="text" id="input-topic-exercises" placeholder="Ej: ecuaciones lineales" />
+                <small class="input-hint">📌 En las respuestas decimales, usa solo dos decimales (ej: 3.14)</small>
             </div>
             
-            <button id="btn-generate-exercises" class="btn-primary">Generar ejercicios</button>
+            <div class="button-group">
+                <button id="btn-generate-exercises" class="btn-primary">Generar ejercicios</button>
+                <button id="btn-reset-exercises" class="btn-secondary">🔄 Reiniciar</button>
+            </div>
             
             <!-- Contenedor de ejercicios -->
             <div id="exercises-container" class="exercises-container hidden"></div>
@@ -124,6 +149,7 @@
             <div id="exercises-results" class="result-box hidden"></div>
         </div>
     </div>
+    
     <script src="/frontend/app.js"></script>
 </body>
 </html>

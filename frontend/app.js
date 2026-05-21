@@ -11,6 +11,9 @@ let currentQuestionBatchIndex = 0;
 let currentExercises = [];
 let exerciseAnswers = [];
 let exerciseResults = [];
+let currentDiagnosticData = null;  // Guardar datos de la respuesta actual
+let lastExerciseTopic = "";        // Guardar el último tema de ejercicios usado
+let lastExplanation = "";          // Guardar la última explicación generada
 
 const LEVEL_LABELS = { basico: "Básico", intermedio: "Intermedio", avanzado: "Avanzado" };
 
@@ -30,6 +33,41 @@ function showView(id) {
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
     const targetView = document.getElementById(id);
     if (targetView) targetView.classList.add("active");
+}
+
+// ========== FORMATEO DE DECIMALES ==========
+function formatDecimalAnswer(answer) {
+    if (!answer) return answer;
+    
+    let answerStr = answer.toString().trim();
+    let num = parseFloat(answerStr);
+    if (isNaN(num)) return answerStr;
+    
+    let rounded = Math.round(num * 100) / 100;
+    
+    if (Math.abs(num - rounded) < 0.001) {
+        return answerStr;
+    }
+    
+    console.log(`Respuesta original: ${answerStr}, redondeada a: ${rounded}`);
+    return rounded.toString();
+}
+
+function showDecimalWarning(original, rounded) {
+    let warningEl = document.getElementById('decimal-warning');
+    if (!warningEl) {
+        warningEl = document.createElement('div');
+        warningEl.id = 'decimal-warning';
+        warningEl.className = 'decimal-warning';
+        const container = document.querySelector('.form-group');
+        if (container) container.appendChild(warningEl);
+    }
+    warningEl.innerHTML = `⚠️ Se ha redondeado tu respuesta de "${original}" a "${rounded}" (máximo 2 decimales)`;
+    warningEl.classList.remove('hidden');
+    
+    setTimeout(() => {
+        warningEl.classList.add('hidden');
+    }, 3000);
 }
 
 // ========== VISTA: BIENVENIDA / LOGIN ==========
@@ -100,7 +138,29 @@ function loadDashboard() {
     showView("view-dashboard");
 }
 
-// ========== DIAGNÓSTICO ADAPTATIVO ==========
+// ========== NOTIFICACIÓN DE NIVEL ==========
+function showLevelUpNotification(newLevel) {
+    const notification = document.createElement('div');
+    notification.className = 'level-up-notification';
+    notification.innerHTML = `
+        <div class="level-up-content">
+            <span class="level-up-icon">🎉</span>
+            <span>¡Has subido de nivel a <strong>${LEVEL_LABELS[newLevel] || newLevel}</strong>!</span>
+            <span class="level-up-icon">🎉</span>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 500);
+    }, 4000);
+}
+
+// ========== DIAGNÓSTICO ADAPTATIVO CON IA ==========
+
 async function startAdaptiveDiagnostic() {
     if (!currentStudent || !currentStudent.id) {
         console.error("No hay estudiante logueado");
@@ -129,6 +189,7 @@ async function startAdaptiveDiagnostic() {
         currentQuestionBatchIndex = 0;
         currentQuestionsBatch = data.questions;
         diagnosticStartTime = Date.now();
+        currentDiagnosticData = null;
         
         if (currentQuestionsBatch && currentQuestionsBatch.length > 0) {
             displayAdaptiveQuestion(currentQuestionsBatch[0], 1, currentQuestionsBatch.length);
@@ -138,6 +199,11 @@ async function startAdaptiveDiagnostic() {
         const progressEl = document.getElementById('adaptive-progress');
         if (levelInfoEl) levelInfoEl.innerHTML = `Nivel actual: ${data.current_level}`;
         if (progressEl) progressEl.textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
+        
+        const submitBtn = document.getElementById('btn-submit-adaptive');
+        const nextBtn = document.getElementById('btn-next-question');
+        if (submitBtn) submitBtn.classList.remove('hidden');
+        if (nextBtn) nextBtn.classList.add('hidden');
         
         showView('view-adaptive-diagnostic');
     } catch (error) {
@@ -159,6 +225,7 @@ function displayAdaptiveQuestion(question, index, total) {
     if (textEl) textEl.textContent = question.pregunta;
     if (answerInput) {
         answerInput.value = '';
+        answerInput.disabled = false;
         answerInput.focus();
     }
     
@@ -171,15 +238,45 @@ function displayAdaptiveQuestion(question, index, total) {
         }
     }
     
-    if (feedbackDiv) feedbackDiv.classList.add('hidden');
+    if (feedbackDiv) {
+        feedbackDiv.classList.add('hidden');
+        feedbackDiv.innerHTML = '';
+    }
+    
+    const submitBtn = document.getElementById('btn-submit-adaptive');
+    const nextBtn = document.getElementById('btn-next-question');
+    const cancelBtn = document.getElementById('btn-cancel-diagnostic');
+    
+    if (submitBtn) {
+        submitBtn.classList.remove('hidden');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+    }
+    if (nextBtn) nextBtn.classList.add('hidden');
+    if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.style.opacity = '1';
+        cancelBtn.style.cursor = 'pointer';
+    }
+    
+    currentDiagnosticData = null;
 }
 
 async function submitAdaptiveAnswer() {
     const answerInput = document.getElementById('adaptive-answer-input');
-    const answer = answerInput ? answerInput.value.trim() : '';
+    let answer = answerInput ? answerInput.value.trim() : '';
     if (!answer) {
         alert("Por favor ingresa una respuesta");
         return;
+    }
+    
+    const originalAnswer = answer;
+    const formattedAnswer = formatDecimalAnswer(answer);
+    if (formattedAnswer !== originalAnswer) {
+        showDecimalWarning(originalAnswer, formattedAnswer);
+        answer = formattedAnswer;
+        answerInput.value = formattedAnswer;
     }
     
     const currentQuestion = currentQuestionsBatch[currentQuestionBatchIndex];
@@ -199,6 +296,8 @@ async function submitAdaptiveAnswer() {
         cancelBtn.style.cursor = 'not-allowed';
     }
     
+    if (answerInput) answerInput.disabled = true;
+    
     showLoader(true);
     
     try {
@@ -215,6 +314,22 @@ async function submitAdaptiveAnswer() {
         });
         
         const data = await res.json();
+        currentDiagnosticData = data;
+        
+        // ✅ ACTUALIZAR NIVEL DEL ESTUDIANTE EN EL FRONTEND
+        if (data.current_level && data.current_level !== currentStudent.level) {
+            console.log(`🎉 Nivel actualizado: ${currentStudent.level} → ${data.current_level}`);
+            const oldLevel = currentStudent.level;
+            currentStudent.level = data.current_level;
+            
+            // Actualizar también level_score si viene
+            if (data.level_score) currentStudent.level_score = data.level_score;
+            
+            // Mostrar notificación si subió de nivel
+            if (data.current_level !== oldLevel) {
+                showLevelUpNotification(data.current_level);
+            }
+        }
         
         const feedbackDiv = document.getElementById('adaptive-feedback');
         if (feedbackDiv) {
@@ -234,6 +349,10 @@ async function submitAdaptiveAnswer() {
         }
         
         if (data.is_complete) {
+            // ✅ Asegurar nivel final
+            if (data.current_level) {
+                currentStudent.level = data.current_level;
+            }
             if (feedbackDiv) feedbackDiv.innerHTML += '<br><br>🎉 ¡Diagnóstico completado! Redirigiendo al dashboard...';
             setTimeout(() => {
                 loadDashboard();
@@ -244,62 +363,26 @@ async function submitAdaptiveAnswer() {
             return;
         }
         
-        currentQuestionBatchIndex++;
+        if (submitBtn) submitBtn.classList.add('hidden');
+        const nextBtn = document.getElementById('btn-next-question');
+        if (nextBtn) nextBtn.classList.remove('hidden');
         
-        if (currentQuestionBatchIndex < currentQuestionsBatch.length) {
-            setTimeout(() => {
-                if (feedbackDiv) feedbackDiv.classList.add('hidden');
-                displayAdaptiveQuestion(currentQuestionsBatch[currentQuestionBatchIndex], currentQuestionBatchIndex + 1, currentQuestionsBatch.length);
-                diagnosticStartTime = Date.now();
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.style.opacity = '1';
-                    submitBtn.style.cursor = 'pointer';
-                }
-                if (cancelBtn) {
-                    cancelBtn.disabled = false;
-                    cancelBtn.style.opacity = '1';
-                    cancelBtn.style.cursor = 'pointer';
-                }
-            }, 2000);
-        } 
-        else if (data.next_questions && data.next_questions.length > 0) {
-            currentQuestionsBatch = data.next_questions;
-            currentQuestionBatchIndex = 0;
-            
-            if (data.next_round && currentDiagnosticSession) {
-                currentDiagnosticSession.round = data.next_round;
-            }
-            const progressEl = document.getElementById('adaptive-progress');
-            if (progressEl && currentDiagnosticSession) {
-                progressEl.textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
-            }
-            
-            setTimeout(() => {
-                if (feedbackDiv) feedbackDiv.classList.add('hidden');
-                displayAdaptiveQuestion(currentQuestionsBatch[0], 1, currentQuestionsBatch.length);
-                diagnosticStartTime = Date.now();
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.style.opacity = '1';
-                    submitBtn.style.cursor = 'pointer';
-                }
-                if (cancelBtn) {
-                    cancelBtn.disabled = false;
-                    cancelBtn.style.opacity = '1';
-                    cancelBtn.style.cursor = 'pointer';
-                }
-            }, 2000);
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.cursor = 'pointer';
         }
         
     } catch (error) {
         console.error("Error enviando respuesta:", error);
         alert("Error al procesar la respuesta. Intenta de nuevo.");
+        
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.style.opacity = '1';
             submitBtn.style.cursor = 'pointer';
         }
+        if (answerInput) answerInput.disabled = false;
         if (cancelBtn) {
             cancelBtn.disabled = false;
             cancelBtn.style.opacity = '1';
@@ -310,7 +393,81 @@ async function submitAdaptiveAnswer() {
     }
 }
 
-// ========== EXPLICACIÓN PERSONALIZADA ==========
+async function nextQuestion() {
+    if (!currentDiagnosticData) {
+        console.error("No hay datos para la siguiente pregunta");
+        return;
+    }
+    
+    const data = currentDiagnosticData;
+    const submitBtn = document.getElementById('btn-submit-adaptive');
+    const nextBtn = document.getElementById('btn-next-question');
+    const feedbackDiv = document.getElementById('adaptive-feedback');
+    const cancelBtn = document.getElementById('btn-cancel-diagnostic');
+    const answerInput = document.getElementById('adaptive-answer-input');
+    
+    currentQuestionBatchIndex++;
+    
+    if (currentQuestionBatchIndex < currentQuestionsBatch.length) {
+        if (feedbackDiv) feedbackDiv.classList.add('hidden');
+        displayAdaptiveQuestion(
+            currentQuestionsBatch[currentQuestionBatchIndex], 
+            currentQuestionBatchIndex + 1, 
+            currentQuestionsBatch.length
+        );
+        diagnosticStartTime = Date.now();
+        
+        if (submitBtn) {
+            submitBtn.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+        if (nextBtn) nextBtn.classList.add('hidden');
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.cursor = 'pointer';
+        }
+        
+    } else if (data.next_questions && data.next_questions.length > 0) {
+        currentQuestionsBatch = data.next_questions;
+        currentQuestionBatchIndex = 0;
+        
+        if (data.next_round && currentDiagnosticSession) {
+            currentDiagnosticSession.round = data.next_round;
+        }
+        const progressEl = document.getElementById('adaptive-progress');
+        if (progressEl && currentDiagnosticSession) {
+            progressEl.textContent = `Ronda ${currentDiagnosticSession.round} de ${currentDiagnosticSession.totalRounds}`;
+        }
+        
+        if (feedbackDiv) feedbackDiv.classList.add('hidden');
+        displayAdaptiveQuestion(
+            currentQuestionsBatch[0], 
+            1, 
+            currentQuestionsBatch.length
+        );
+        diagnosticStartTime = Date.now();
+        
+        if (submitBtn) {
+            submitBtn.classList.remove('hidden');
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+        if (nextBtn) nextBtn.classList.add('hidden');
+        if (cancelBtn) {
+            cancelBtn.disabled = false;
+            cancelBtn.style.opacity = '1';
+            cancelBtn.style.cursor = 'pointer';
+        }
+    }
+    
+    currentDiagnosticData = null;
+}
+
+// ========== EXPLICACIÓN PERSONALIZADA CON FEEDBACK ==========
 async function generateExplanation() {
     const topicInput = document.getElementById('input-topic-explain');
     const topic = topicInput ? topicInput.value.trim() : '';
@@ -321,17 +478,42 @@ async function generateExplanation() {
     
     showLoader(true);
     const resultEl = document.getElementById('result-explain');
+    const feedbackArea = document.getElementById('feedback-area');
+    
+    // Ocultar feedback area mientras se genera
+    if (feedbackArea) feedbackArea.classList.add('hidden');
     
     try {
         const res = await fetch('/explain', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ topic: topic, student_level: currentStudent.level })
+            body: JSON.stringify({ 
+                topic: topic, 
+                student_level: currentStudent.level,
+                student_id: currentStudent.id
+            })
         });
         const data = await res.json();
+        
         if (resultEl) {
-            resultEl.textContent = data.content || "Sin respuesta.";
+            const explanationContent = data.content || "Sin respuesta.";
+            resultEl.textContent = explanationContent;
             resultEl.classList.remove('hidden');
+            lastExplanation = explanationContent;
+            
+            // Detectar si es un mensaje de error (tema no matemático)
+            const isErrorMessage = explanationContent.includes("⚠️ Lo siento, este sistema solo puede ayudarte con temas de MATEMÁTICAS");
+            const isEmptyMessage = explanationContent === "Sin respuesta.";
+            
+            // Solo mostrar feedback si:
+            // 1. No es mensaje de error
+            // 2. No está vacío
+            // 3. El contenido es válido
+            if (feedbackArea && !isErrorMessage && !isEmptyMessage) {
+                feedbackArea.classList.remove('hidden');
+            } else {
+                feedbackArea.classList.add('hidden');
+            }
         }
     } catch (error) {
         console.error("Error:", error);
@@ -339,19 +521,93 @@ async function generateExplanation() {
             resultEl.textContent = "Error al generar explicación.";
             resultEl.classList.remove('hidden');
         }
+        if (feedbackArea) feedbackArea.classList.add('hidden');
+    } finally {
+        hideLoader();
+    }
+}
+
+// Enviar retroalimentación de explicación
+async function sendExplanationFeedback(feedback) {
+    const topicInput = document.getElementById('input-topic-explain');
+    const topic = topicInput ? topicInput.value.trim() : '';
+    
+    showLoader(true);
+    
+    try {
+        const res = await fetch('/explain/feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: currentStudent.id,
+                topic: topic,
+                feedback: feedback,
+                explanation: lastExplanation
+            })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            alert("✅ Gracias por tu retroalimentación. Mejoraré mis explicaciones.");
+            // Ocultar área de feedback después de enviar
+            const feedbackArea = document.getElementById('feedback-area');
+            if (feedbackArea) feedbackArea.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error("Error enviando feedback:", error);
+        alert("Error al enviar retroalimentación");
     } finally {
         hideLoader();
     }
 }
 
 // ========== EJERCICIOS INTERACTIVOS ==========
-async function generateExercises() {
-    const topicInput = document.getElementById('input-topic-exercises');
-    const topic = topicInput ? topicInput.value.trim() : '';
-    if (!topic) {
-        alert("Ingresa un tema");
+async function generateExercises(resetTopic = false) {
+    let topic;
+    
+    if (resetTopic) {
+        // Reiniciar: limpiar todo
+        currentExercises = [];
+        exerciseAnswers = [];
+        exerciseResults = [];
+        lastExerciseTopic = "";
+        
+        const topicInput = document.getElementById('input-topic-exercises');
+        if (topicInput) {
+            topicInput.value = '';
+            topicInput.disabled = false;
+            topicInput.focus();
+        }
+        
+        const container = document.getElementById('exercises-container');
+        if (container) {
+            container.innerHTML = '';
+            container.classList.add('hidden');
+        }
+        
+        const resultsDiv = document.getElementById('exercises-results');
+        if (resultsDiv) resultsDiv.classList.add('hidden');
+        
         return;
     }
+    
+    // Generar nuevos ejercicios
+    const topicInput = document.getElementById('input-topic-exercises');
+    topic = topicInput ? topicInput.value.trim() : '';
+    
+    if (!topic) {
+        // Si no hay tema pero hay un tema anterior, reutilizarlo
+        if (lastExerciseTopic) {
+            topic = lastExerciseTopic;
+            if (topicInput) topicInput.value = topic;
+        } else {
+            alert("Ingresa un tema");
+            return;
+        }
+    }
+    
+    // Guardar el tema para reutilizar
+    lastExerciseTopic = topic;
     
     showLoader(true);
     
@@ -374,10 +630,6 @@ async function generateExercises() {
         const data = await res.json();
         console.log("Ejercicios recibidos:", data);
         
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        
         if (data.exercises && Array.isArray(data.exercises) && data.exercises.length > 0) {
             currentExercises = data.exercises;
             exerciseAnswers = new Array(currentExercises.length).fill('');
@@ -391,28 +643,12 @@ async function generateExercises() {
         console.error("Error generando ejercicios:", error);
         const container = document.getElementById('exercises-container');
         if (container) {
-            container.innerHTML = `<div class="error-message">❌ Error: ${error.message}<br><br>Intenta con otro tema o más tarde.</div>`;
+            container.innerHTML = `<div class="error-message">❌ Error: ${error.message}<br><br>Verifica que el servidor esté corriendo y que el tema sea matemático.</div>`;
             container.classList.remove('hidden');
         }
     } finally {
         hideLoader();
     }
-}
-
-function formatMathText(text) {
-    if (!text) return '';
-    
-    // Convertir **texto** a <strong>texto</strong> (negritas)
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // Convertir *texto* a <em>texto</em> (cursiva)
-    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Convertir expresiones matemáticas como \( ... \) a formato legible
-    text = text.replace(/\\\((.*?)\\\)/g, '<span class="math-inline">$1</span>');
-    text = text.replace(/\\\[(.*?)\\\]/g, '<span class="math-block">$1</span>');
-    
-    return text;
 }
 
 function renderExercises() {
@@ -442,20 +678,12 @@ function renderExercises() {
             feedbackText = `❌ Incorrecto. La respuesta correcta era: ${ex.respuesta_esperada}`;
         }
         
-        // Formatear pregunta y pista para eliminar asteriscos
-        const preguntaFormateada = formatMathText(ex.pregunta || '?');
-        const pistaFormateada = formatMathText(ex.pista || ex.scaffolding_hint || 'Resuelve paso a paso');
-        
-        const inputType = ex.is_math ? 'number' : 'text';
-        const inputStep = ex.is_math ? 'step="any"' : '';
-        const placeholder = ex.is_math ? 'Tu respuesta (solo número)' : 'Tu respuesta';
-        
         html += `
             <div class="exercise-item" data-index="${index}">
-                <div class="exercise-question">${index + 1}. ${preguntaFormateada}</div>
-                <div class="exercise-hint">💡 Pista: ${pistaFormateada}</div>
-                <input type="${inputType}" ${inputStep} class="exercise-input" id="answer-${index}" 
-                       placeholder="${placeholder}" value="${userAnswer}" ${result !== undefined ? 'disabled' : ''}>
+                <div class="exercise-question">${index + 1}. ${ex.pregunta || '?'}</div>
+                <div class="exercise-hint">💡 Pista: ${ex.pista || ex.scaffolding_hint || 'Resuelve paso a paso'}</div>
+                <input type="number" class="exercise-input" id="answer-${index}" 
+                       placeholder="Tu respuesta" value="${userAnswer}" ${result !== undefined ? 'disabled' : ''}>
                 ${result === undefined ? `<button class="btn-check-exercise" onclick="checkExercise(${index})">Verificar</button>` : ''}
                 <div class="exercise-feedback ${feedbackClass}">${feedbackText}</div>
             </div>
@@ -474,14 +702,20 @@ function renderExercises() {
                 <h4>📊 Resumen</h4>
                 <p>Correctos: ${correctCount} de ${currentExercises.length}</p>
                 <p>Puntaje: ${score.toFixed(0)}%</p>
-                <button id="btn-retry-exercises" class="btn-primary" style="margin-top: 10px;">Generar nuevos ejercicios</button>
+                <div class="summary-buttons">
+                    <button id="btn-generate-more" class="btn-primary" style="margin-top: 10px;">Generar más ejercicios</button>
+                </div>
             </div>
         `;
         
         setTimeout(() => {
-            const retryBtn = document.getElementById('btn-retry-exercises');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', generateExercises);
+            const generateMoreBtn = document.getElementById('btn-generate-more');
+            if (generateMoreBtn) {
+                generateMoreBtn.addEventListener('click', () => generateExercises(false));
+            }
+            const resetFromSummaryBtn = document.getElementById('btn-reset-from-summary');
+            if (resetFromSummaryBtn) {
+                resetFromSummaryBtn.addEventListener('click', () => generateExercises(true));
             }
         }, 100);
     }
@@ -490,7 +724,7 @@ function renderExercises() {
     container.classList.remove('hidden');
 }
 
-window.checkExercise = function(index) {
+window.checkExercise = async function(index) {
     const input = document.getElementById(`answer-${index}`);
     if (!input) return;
     
@@ -503,25 +737,51 @@ window.checkExercise = function(index) {
     const exercise = currentExercises[index];
     if (!exercise) return;
     
-    let isCorrect = false;
-    
-    if (exercise.is_math) {
-        // Comparación numérica con tolerancia para ejercicios de matemáticas
-        const studentNum = parseFloat(userAnswer);
-        const expectedNum = parseFloat(exercise.respuesta_esperada);
-        if (!isNaN(studentNum) && !isNaN(expectedNum)) {
-            isCorrect = Math.abs(studentNum - expectedNum) < 0.01;
-        }
-    } else {
-        // Comparación por texto para otros temas
-        isCorrect = userAnswer.toLowerCase() === String(exercise.respuesta_esperada).toLowerCase();
-    }
+    const isCorrect = parseInt(userAnswer) === parseInt(exercise.respuesta_esperada);
     
     exerciseAnswers[index] = userAnswer;
     exerciseResults[index] = isCorrect;
     
+    await updateStudentProgressAndLevel(exercise.pregunta, isCorrect);
+    
     renderExercises();
 };
+
+async function updateStudentProgressAndLevel(question, isCorrect) {
+    try {
+        const res = await fetch('/student/update-level', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: currentStudent.id,
+                question: question,
+                is_correct: isCorrect,
+                topic: 'ejercicios'
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (data.new_level && data.new_level !== currentStudent.level) {
+            console.log(`🎉 Nivel actualizado por ejercicios: ${currentStudent.level} → ${data.new_level}`);
+            const oldLevel = currentStudent.level;
+            currentStudent.level = data.new_level;
+            currentStudent.level_score = data.new_level_score;
+            
+            if (data.new_level !== oldLevel) {
+                showLevelUpNotification(data.new_level);
+            }
+            
+            const levelEl = document.getElementById('dashboard-level');
+            if (levelEl) {
+                levelEl.textContent = LEVEL_LABELS[currentStudent.level] || currentStudent.level;
+            }
+        }
+        
+    } catch (error) {
+        console.error("Error actualizando progreso:", error);
+    }
+}
 
 // ========== INICIALIZAR EVENTOS ==========
 document.addEventListener('DOMContentLoaded', () => {
@@ -552,26 +812,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const backExercises = document.getElementById('back-exercises');
     if (backExercises) backExercises.addEventListener('click', () => showView("view-dashboard"));
     
+    // Botones de explicación
     const btnGenerateExplain = document.getElementById('btn-generate-explain');
     if (btnGenerateExplain) btnGenerateExplain.addEventListener('click', generateExplanation);
     
+    // Botones de ejercicios
     const btnGenerateExercises = document.getElementById('btn-generate-exercises');
-    if (btnGenerateExercises) btnGenerateExercises.addEventListener('click', generateExercises);
+    if (btnGenerateExercises) {
+        btnGenerateExercises.addEventListener('click', () => generateExercises(false));
+    }
     
-    const btnSubmitAdaptive = document.getElementById('btn-submit-adaptive');
-    if (btnSubmitAdaptive) btnSubmitAdaptive.addEventListener('click', submitAdaptiveAnswer);
+    const btnResetExercises = document.getElementById('btn-reset-exercises');
+    if (btnResetExercises) {
+        btnResetExercises.addEventListener('click', () => generateExercises(true));
+    }
+    
+    // Botones de diagnóstico adaptativo
+    const submitBtn = document.getElementById('btn-submit-adaptive');
+    if (submitBtn) submitBtn.addEventListener('click', submitAdaptiveAnswer);
+    
+    const nextBtn = document.getElementById('btn-next-question');
+    if (nextBtn) nextBtn.addEventListener('click', nextQuestion);
     
     const adaptiveAnswerInput = document.getElementById('adaptive-answer-input');
-    if (adaptiveAnswerInput) adaptiveAnswerInput.addEventListener('keydown', (e) => { if (e.key === "Enter") submitAdaptiveAnswer(); });
+    if (adaptiveAnswerInput) {
+        adaptiveAnswerInput.addEventListener('keydown', (e) => {
+            if (e.key === "Enter") {
+                const nextQuestionBtn = document.getElementById('btn-next-question');
+                if (nextQuestionBtn && !nextQuestionBtn.classList.contains('hidden')) {
+                    nextQuestion();
+                } else {
+                    submitAdaptiveAnswer();
+                }
+            }
+        });
+    }
     
-    const btnCancelDiagnostic = document.getElementById('btn-cancel-diagnostic');
-    if (btnCancelDiagnostic) btnCancelDiagnostic.addEventListener('click', () => {
-        currentDiagnosticSession = null;
-        showView("view-welcome");
+    const cancelDiagnosticBtn = document.getElementById('btn-cancel-diagnostic');
+    if (cancelDiagnosticBtn) {
+        cancelDiagnosticBtn.addEventListener('click', () => {
+            currentDiagnosticSession = null;
+            currentDiagnosticData = null;
+            showView("view-welcome");
+        });
+    }
+    
+    // Botones de retroalimentación de explicaciones
+    const feedbackBtns = document.querySelectorAll('.feedback-btn');
+    feedbackBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const feedback = btn.getAttribute('data-feedback');
+            sendExplanationFeedback(feedback);
+        });
     });
+    
+    const submitFeedbackBtn = document.getElementById('submit-feedback');
+    if (submitFeedbackBtn) {
+        submitFeedbackBtn.addEventListener('click', () => {
+            const customFeedback = document.getElementById('custom-feedback').value.trim();
+            if (customFeedback) {
+                sendExplanationFeedback(customFeedback);
+                document.getElementById('custom-feedback').value = '';
+            } else {
+                alert("Escribe un comentario antes de enviar");
+            }
+        });
+    }
 });
 
-// ========== HELPERS ==========
 function showError(el, msg) {
     if (el) {
         el.textContent = msg;

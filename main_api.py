@@ -2,12 +2,12 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from database import SessionLocal, Student, PrePostTest
 from rag_engine import load_knowledge_base
-from content_generator import generate_explanation, generate_exercises, give_feedback, is_math_topic, normalize_numeric_answer
+from content_generator import generate_explanation, generate_exercises, generate_exercises_with_answers, give_feedback
 from cognitive_diagnostic import CognitiveDiagnosticProfile, generate_adaptive_questions, evaluate_answer_semantic
 import time
 import os
 import json
-from datetime import datetime 
+from datetime import datetime
 
 app = Flask(__name__, static_folder='frontend', static_url_path='/frontend')
 CORS(app)
@@ -42,7 +42,6 @@ def serve_js():
     return send_from_directory('frontend', 'app.js')
 
 # ========== ENDPOINTS DE ESTUDIANTES ==========
-
 @app.route('/students/<name>', methods=['GET'])
 def get_student(name):
     db = SessionLocal()
@@ -74,7 +73,6 @@ def create_student():
     db.add(student)
     db.commit()
     
-    # ✅ Guardar los valores ANTES de cerrar la sesión
     student_id = student.id
     student_name = student.name
     student_level = student.level
@@ -91,7 +89,6 @@ def create_student():
     })
 
 # ========== ENDPOINTS DE DIAGNÓSTICO TRADICIONAL ==========
-
 @app.route('/diagnostic/questions', methods=['GET'])
 def get_diagnostic_questions():
     return jsonify(DIAGNOSTIC_QUESTIONS)
@@ -129,8 +126,64 @@ def evaluate_diagnostic():
     })
 
 # ========== ENDPOINTS DE DIAGNÓSTICO ADAPTATIVO ==========
-
 active_sessions = {}
+
+@app.route('/student/update-level', methods=['POST'])
+def update_student_level():
+    data = request.json
+    student_id = data.get('student_id')
+    is_correct = data.get('is_correct')
+    topic = data.get('topic')
+    
+    db = SessionLocal()
+    student = db.query(Student).filter_by(id=student_id).first()
+    
+    if not student:
+        db.close()
+        return jsonify({"error": "Estudiante no encontrado"}), 404
+    
+    if not student.interaction_history:
+        student.interaction_history = []
+    
+    student.interaction_history.append({
+        "topic": topic,
+        "is_correct": is_correct,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    if len(student.interaction_history) > 20:
+        student.interaction_history = student.interaction_history[-20:]
+    
+    recent = student.interaction_history[-10:]
+    correct_count = sum(1 for i in recent if i.get("is_correct", False))
+    success_rate = (correct_count / len(recent)) * 100 if recent else student.level_score
+    
+    if student.level_score == 0:
+        student.level_score = success_rate
+    else:
+        student.level_score = (student.level_score * 0.7) + (success_rate * 0.3)
+    
+    if student.level_score >= 70:
+        new_level = "avanzado"
+    elif student.level_score >= 40:
+        new_level = "intermedio"
+    else:
+        new_level = "basico"
+    
+    level_changed = (new_level != student.level)
+    student.level = new_level
+    
+    db.commit()
+    
+    response = {
+        "success": True,
+        "new_level": student.level,
+        "new_level_score": student.level_score,
+        "level_changed": level_changed
+    }
+    
+    db.close()
+    return jsonify(response)
 
 @app.route('/student/progress', methods=['POST'])
 def update_progress():
@@ -140,7 +193,6 @@ def update_progress():
     is_correct = data.get('is_correct')
     topic = data.get('topic')
     
-    # Actualizar historial de interacciones del estudiante
     db = SessionLocal()
     student = db.query(Student).filter_by(id=student_id).first()
     if student:
@@ -159,7 +211,6 @@ def update_progress():
 
 @app.route('/diagnostic/test', methods=['POST'])
 def test_diagnostic():
-    """Prueba si la IA puede generar preguntas - SIN FALLBACK"""
     try:
         from cognitive_diagnostic import generate_test_questions_only
         generate_test_questions_only()
@@ -222,21 +273,17 @@ def process_diagnostic_answer():
     
     profile = session["profile"]
     
-    # Evaluar respuesta
     from cognitive_diagnostic import evaluate_answer_semantic
     is_correct = evaluate_answer_semantic(question_text, student_answer, expected_answer)
     
-    # Crear objeto pregunta para el perfil
     question_obj = {
         "pregunta": question_text,
         "tipo": "abierta",
         "nivel": profile.current_level
     }
     
-    # Actualizar perfil cognitivo
     profile.update_from_response(question_obj, is_correct, response_time)
     
-    # Registrar respuesta
     session["answers_history"].append({
         "question": question_text,
         "student_answer": student_answer,
@@ -244,7 +291,6 @@ def process_diagnostic_answer():
         "response_time": response_time
     })
     
-    # Remover la pregunta respondida
     if session["questions_remaining"] and len(session["questions_remaining"]) > 0:
         session["questions_remaining"].pop(0)
     
@@ -252,23 +298,19 @@ def process_diagnostic_answer():
     next_round = session["current_round"]
     is_complete = False
     
-    # Si no hay más preguntas en esta ronda
     if not session["questions_remaining"] or len(session["questions_remaining"]) == 0:
         next_round = session["current_round"] + 1
         session["current_round"] = next_round
         
         if next_round <= session["total_rounds"]:
-            # Generar nuevas preguntas para la siguiente ronda
             new_questions = generate_adaptive_questions(profile, num_questions=3)
             session["questions_remaining"] = new_questions
             print(f"🔄 Nueva ronda {next_round}: {len(new_questions)} preguntas generadas")
         else:
-            # Diagnóstico completado
             is_complete = True
             print(f"✅ Diagnóstico completado para {profile.student_name}")
             del active_sessions[session_id]
     
-    # Preparar respuesta
     response_data = {
         "is_correct": is_correct,
         "feedback": {
@@ -280,12 +322,10 @@ def process_diagnostic_answer():
         "is_complete": is_complete
     }
     
-    # Si hay nuevas preguntas, enviarlas
     if new_questions and len(new_questions) > 0:
         response_data["next_questions"] = new_questions
         response_data["next_round"] = next_round
     
-    # Si aún hay preguntas en la ronda actual, enviar la siguiente
     elif session.get("questions_remaining") and len(session["questions_remaining"]) > 0:
         response_data["next_questions"] = session["questions_remaining"]
         response_data["next_round"] = session["current_round"]
@@ -307,8 +347,49 @@ def get_diagnostic_status(session_id):
         "questions_remaining": session["questions_remaining"]
     })
 
+@app.route('/explain/feedback', methods=['POST'])
+def receive_explanation_feedback():
+    """Recibe retroalimentación del usuario sobre las explicaciones"""
+    data = request.json
+    student_id = data.get('student_id')
+    topic = data.get('topic')
+    feedback = data.get('feedback')
+    explanation = data.get('explanation')
+    
+    if not student_id:
+        return jsonify({"error": "Se requiere student_id"}), 400
+    
+    db = SessionLocal()
+    student = db.query(Student).filter_by(id=student_id).first()
+    
+    if not student:
+        db.close()
+        return jsonify({"error": "Estudiante no encontrado"}), 404
+    
+    # Inicializar preferencias si no existen
+    if not student.preferences:
+        student.preferences = {}
+    
+    if 'explicaciones' not in student.preferences:
+        student.preferences['explicaciones'] = []
+    
+    # Agregar feedback
+    student.preferences['explicaciones'].append({
+        "topic": topic,
+        "feedback": feedback,
+        "explanation_snippet": explanation[:300] if explanation else "",
+        "timestamp": datetime.utcnow().isoformat()
+    })
+    
+    # Limitar historial a 20 items
+    if len(student.preferences['explicaciones']) > 20:
+        student.preferences['explicaciones'] = student.preferences['explicaciones'][-20:]
+    
+    db.commit()
+    db.close()
+    
+    return jsonify({"success": True, "message": "Gracias por tu retroalimentación"})
 # ========== ENDPOINTS DE CONTENIDO ==========
-
 @app.route('/explain', methods=['POST'])
 def explain():
     data = request.json
@@ -319,41 +400,22 @@ def explain():
 
 @app.route('/exercises', methods=['POST'])
 def exercises():
-    """Genera ejercicios de práctica - formato estructurado para respuestas"""
-    data = request.get_json()
-    topic = data.get('topic', 'matemáticas')
-    student_level = data.get('student_level', 'basico')
-    quantity = data.get('quantity', 3)
-    
-    from content_generator import generate_exercises_with_answers
-    exercises_list = generate_exercises_with_answers(topic, student_level, quantity)
-    
-    math_topic = is_math_topic(topic)
-    
-    # Asegurar que cada ejercicio tenga los campos necesarios
-    for ex in exercises_list:
-        if 'pregunta' not in ex:
-            ex['pregunta'] = 'Ecuación no disponible'
-        if 'respuesta_esperada' not in ex:
-            ex['respuesta_esperada'] = '0'
-        if 'pista' not in ex and 'scaffolding_hint' in ex:
-            ex['pista'] = ex['scaffolding_hint']
-        elif 'pista' not in ex:
-            ex['pista'] = 'Resuelve paso a paso'
+    try:
+        data = request.get_json()
+        topic = data.get('topic', 'matemáticas')
+        student_level = data.get('student_level', 'basico')
+        quantity = data.get('quantity', 3)
         
-        # Forzar respuestas numéricas para temas de matemáticas
-        if math_topic:
-            ex['respuesta_esperada'] = normalize_numeric_answer(ex['respuesta_esperada'])
-            ex['is_math'] = True
-        else:
-            ex['is_math'] = ex.get('is_math', False)
-    
-    return jsonify({
-        "exercises": exercises_list,
-        "topic": topic,
-        "level": student_level,
-        "is_math": math_topic
-    })
+        exercises_list = generate_exercises_with_answers(topic, student_level, quantity)
+        
+        return jsonify({
+            "exercises": exercises_list,
+            "topic": topic,
+            "level": student_level
+        })
+    except Exception as e:
+        print(f"Error en /exercises: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/feedback', methods=['POST'])
 def feedback():
@@ -361,24 +423,11 @@ def feedback():
     student_answer = data.get('student_answer')
     correct_answer = data.get('correct_answer')
     student_level = data.get('student_level', 'basico')
-    exercise_is_math = data.get('is_math', False)
-    
-    # Para ejercicios de matemáticas, comparar numéricamente
-    if exercise_is_math:
-        try:
-            student_num = float(str(student_answer).strip())
-            correct_num = float(str(correct_answer).strip())
-            is_correct = abs(student_num - correct_num) < 0.01
-        except (ValueError, TypeError):
-            is_correct = str(student_answer).strip() == str(correct_answer).strip()
-    else:
-        is_correct = str(student_answer).strip() == str(correct_answer).strip()
-    
-    feedback_text = give_feedback(student_answer, correct_answer, student_level, is_math=exercise_is_math)
-    return jsonify({"content": feedback_text, "is_correct": is_correct})
+    is_math = data.get('is_math', True)
+    feedback_text = give_feedback(student_answer, correct_answer, student_level, is_math)
+    return jsonify({"content": feedback_text, "is_correct": student_answer.strip() == correct_answer.strip()})
 
 # ========== ENDPOINTS DE MÉTRICAS ==========
-
 @app.route('/test/save', methods=['POST'])
 def save_test_result():
     data = request.json

@@ -23,6 +23,7 @@ class Student(Base):
     common_errors = Column(JSON, default=list)
     diagnostic_results = Column(JSON, default=dict)
     interaction_history = Column(JSON, default=list)
+    preferences = Column(JSON, default=dict)  
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
