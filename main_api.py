@@ -1,9 +1,13 @@
+print("Iniciando el servidor... (cargar el modelo de embeddings tarda"
+      " entre 20 y 60 segundos la primera vez)", flush=True)
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from database import SessionLocal, Student, PrePostTest
 from rag_engine import load_knowledge_base
 from content_generator import generate_explanation, generate_exercises, give_feedback
 from cognitive_diagnostic import CognitiveDiagnosticProfile, generate_adaptive_questions, evaluate_answer_semantic
+from datetime import datetime
 import time
 import os
 import json
@@ -13,6 +17,9 @@ CORS(app)
 
 # Cargar base de conocimiento al iniciar
 load_knowledge_base()
+
+print("Todo listo. Abre http://localhost:5000 en el navegador "
+      "(Ctrl+C aqui para detenerlo).", flush=True)
 
 # ========== PREGUNTAS DEL DIAGNÓSTICO (FALLBACK) ==========
 DIAGNOSTIC_QUESTIONS = [
@@ -313,8 +320,9 @@ def explain():
     data = request.json
     topic = data.get('topic')
     student_level = data.get('student_level', 'basico')
-    explanation = generate_explanation(topic, student_level)
-    return jsonify({"content": explanation, "topic": topic, "level": student_level})
+    explanation, fuentes = generate_explanation(topic, student_level, con_fuentes=True)
+    return jsonify({"content": explanation, "topic": topic, "level": student_level,
+                    "fuentes": fuentes})
 
 @app.route('/exercises', methods=['POST'])
 def exercises():

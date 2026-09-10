@@ -315,13 +315,26 @@ document.getElementById("btn-logout").addEventListener("click", () => {
     showView("view-welcome");
 });
 
-// ========== NAVEGACIÓN DEL MENÚ ==========
-document.getElementById("btn-explain").addEventListener("click", () => showView("view-explain"));
-document.getElementById("btn-exercises").addEventListener("click", () => showView("view-exercises"));
-document.getElementById("btn-feedback").addEventListener("click", () => showView("view-feedback"));
-document.getElementById("back-explain").addEventListener("click", () => showView("view-dashboard"));
-document.getElementById("back-exercises").addEventListener("click", () => showView("view-dashboard"));
-document.getElementById("back-feedback").addEventListener("click", () => showView("view-dashboard"));
+// ========== NAVEGACION DEL MENU ==========
+// Se registra con alClic y no con getElementById directo: la vista de
+// retroalimentacion ya no existe en el HTML, y el error que lanzaba
+// btn-feedback cortaba el script y dejaba sin listener a todo lo de abajo
+// (por eso "Generar ejercicios" no hacia nada).
+function alClic(id, manejador) {
+    const el = document.getElementById(id);
+    if (!el) {
+        console.warn(`No existe el elemento "${id}", se omite su listener`);
+        return;
+    }
+    el.addEventListener("click", manejador);
+}
+
+alClic("btn-explain", () => showView("view-explain"));
+alClic("btn-exercises", () => showView("view-exercises"));
+alClic("btn-feedback", () => showView("view-feedback"));
+alClic("back-explain", () => showView("view-dashboard"));
+alClic("back-exercises", () => showView("view-dashboard"));
+alClic("back-feedback", () => showView("view-dashboard"));
 
 // ========== EXPLICACIÓN PERSONALIZADA ==========
 document.getElementById("btn-generate-explain").addEventListener("click", async () => {
@@ -516,7 +529,11 @@ async function callApi({ url, body, btnId, btnLabel, resultId }) {
             body: JSON.stringify(body),
         });
         const data = await res.json();
-        setResult(resultEl, data.content || data.detail || "Sin respuesta.");
+        let texto = data.content || data.detail || "Sin respuesta.";
+        if (data.fuentes && data.fuentes.length) {
+            texto += "\n\nMaterial del curso consultado: " + data.fuentes.join(", ");
+        }
+        setResult(resultEl, texto);
     } catch (error) {
         setResult(resultEl, "Error al procesar la solicitud. Verifica que el servidor esté activo.");
         console.error("API Error:", error);

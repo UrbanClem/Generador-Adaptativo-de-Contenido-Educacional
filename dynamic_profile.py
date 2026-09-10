@@ -7,6 +7,7 @@ Basado en:
 """
 
 import ollama
+from config import OLLAMA_MODEL
 import json
 import re
 from cognitive_diagnostic import CognitiveDiagnosticProfile
@@ -63,7 +64,7 @@ Formato JSON:
 """
     
     try:
-        response = ollama.chat(model='llama3.2:1b', messages=[{'role': 'user', 'content': prompt}])
+        response = ollama.chat(model=OLLAMA_MODEL, messages=[{'role': 'user', 'content': prompt}])
         content = response['message']['content']
         content = re.sub(r'```json\s*', '', content)
         content = re.sub(r'```\s*', '', content)

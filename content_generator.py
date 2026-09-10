@@ -1,29 +1,62 @@
 import ollama
 import json
 import re
-from cognitive_diagnostic import solve_equation
+from cognitive_diagnostic import ajustar_a_entero
+from rag_engine import retrieve_pertinentes, temas_disponibles
+from config import OLLAMA_MODEL
 
 # ========== CONFIGURACIÓN ==========
-MODEL_NAME = "mistral:latest"  # Usar Mistral para mejor calidad
+MODEL_NAME = OLLAMA_MODEL  # se configura con la variable OLLAMA_MODEL
 
 
-def generate_explanation(topic, student_level):
-    """Genera una explicación personalizada del tema"""
+def generate_explanation(topic, student_level, con_fuentes=False):
+    """Genera una explicación personalizada del tema, apoyada en el material
+
+    Recupera de la base de conocimiento los fragmentos más parecidos al tema,
+    descarta los que no tratan ese tema y pasa el resto en el prompt, para que
+    la explicación salga del material del curso y no del conocimiento propio
+    del modelo. Si no queda material, no se explica nada: pedirle al prompt que
+    avise no funciona (con "derivadas" el modelo inventó una explicación, y
+    equivocada, aunque la regla se lo prohibía).
+    """
+    pasajes = retrieve_pertinentes(topic, n_results=3)
+    material = '\n\n---\n\n'.join(p["texto"] for p in pasajes)
+    fuentes = []
+    for p in pasajes:
+        if p["fuente"] and p["fuente"] not in fuentes:
+            fuentes.append(p["fuente"])
+
+    if not material:
+        print(f"Sin material para '{topic}': no se genera explicación")
+        temas = temas_disponibles()
+        texto = (f"El material del curso no cubre \"{topic}\", así que no puedo explicarlo. "
+                 "Los temas que sí están cubiertos son:\n\n"
+                 + "\n".join(f"- {t.capitalize()}" for t in temas))
+        return (texto, []) if con_fuentes else texto
+
     prompt = f"""
 Eres un tutor de matemáticas. Explica {topic} a un estudiante de nivel {student_level}.
 
+MATERIAL DEL CURSO:
+{material}
+
 REGLAS:
+- Explica únicamente con lo que aparece en el material de arriba
+- No inventes reglas, fórmulas ni definiciones que no estén ahí
 - Usa lenguaje claro y sencillo
-- Incluye un ejemplo práctico
-- No uses fórmulas demasiado complejas
+- Incluye un ejemplo práctico tomado del material
 - Extensión: 3-5 párrafos
 """
+
     try:
         response = ollama.chat(model=MODEL_NAME, messages=[{'role': 'user', 'content': prompt}])
-        return response['message']['content']
+        texto = response['message']['content']
     except Exception as e:
         print(f"Error generando explicación: {e}")
-        return f"Lo siento, no pude generar una explicación en este momento. Error: {str(e)}"
+        texto = f"Lo siento, no pude generar una explicación en este momento. Error: {str(e)}"
+        fuentes = []
+
+    return (texto, fuentes) if con_fuentes else texto
 
 
 def generate_exercises(topic, student_level, quantity=3):
@@ -53,12 +86,12 @@ def generate_exercises_with_answers(topic, student_level, quantity=3):
     """
     
     prompt = f"""
-Eres un profesor de matemáticas. Genera {quantity} ejercicios de {topic} para nivel {student_level}.
+Eres un profesor de matemáticas. Genera {quantity + 3} ejercicios de {topic} para nivel {student_level}.
 
 REGLAS:
 - Cada ejercicio debe ser una ECUACIÓN de primer grado
 - Formato: "2x + 3 = 11"
-- La respuesta debe ser un número entero
+- La respuesta debe ser un número entero (la división debe ser exacta)
 - Incluye una pista corta sin revelar la respuesta
 
 RESPONDE SOLO CON UN JSON. FORMATO EXACTO:
@@ -81,18 +114,31 @@ RESPONDE SOLO CON UN JSON. FORMATO EXACTO:
         
         exercises = json.loads(content)
         
-        # Validar cada ejercicio con el solucionador matemático
+        # Validar cada ejercicio con el solucionador matemático, no con la IA
+        validos = []
         for ex in exercises:
             equation = ex.get("pregunta", "")
-            real_answer = solve_equation(equation)
-            if real_answer:
-                ex["respuesta_esperada"] = real_answer
-                print(f"✅ Ecuación válida: {equation} → respuesta: {real_answer}")
-            else:
-                print(f"⚠️ No se pudo resolver: {equation}")
-                ex["respuesta_esperada"] = "0"
-        
-        return exercises
+            ajuste = ajustar_a_entero(equation)
+            if ajuste is None:
+                print(f"Descartado (no se pudo interpretar): {equation}")
+                continue
+            if ajuste[0] != equation:
+                print(f"Ajustado: {equation} -> {ajuste[0]}")
+            ex["pregunta"], ex["respuesta_esperada"] = ajuste
+            ex["tipo"] = "abierta"
+            validos.append(ex)
+
+        # Si la IA no dejó suficientes ejercicios usables, se completa con el banco
+        if len(validos) < quantity:
+            respaldo = fallback_exercises(topic, student_level, quantity)
+            usadas = {e["pregunta"] for e in validos}
+            for ex in respaldo:
+                if len(validos) >= quantity:
+                    break
+                if ex["pregunta"] not in usadas:
+                    validos.append(ex)
+
+        return validos[:quantity]
         
     except json.JSONDecodeError as e:
         print(f"Error JSON en generate_exercises_with_answers: {e}")
