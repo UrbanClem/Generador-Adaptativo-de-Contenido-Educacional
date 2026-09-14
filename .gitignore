@@ -1,0 +1,12 @@
+# Entornos y cache de Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Configuracion local (modelo, cadena de conexion)
+.env
+
+# Base de datos de las sesiones: trae nombres de estudiantes reales, no se
+# publica. El esquema lo recrea `init_db()` al arrancar.
+education.db

@@ -94,6 +94,23 @@ mucho más rápido, pero inventa más ecuaciones mal planteadas.
   X?" con `num_predict=3` acierta 14 de 16 temas de prueba y cuesta menos de
   un segundo por fragmento.
 
+## Pruebas
+
+Hay **25 pruebas automatizadas** en `tests/`: 16 unitarias y los 9 casos
+funcionales CP01–CP09 de la tabla 13 del documento de tesis. Se corren desde
+esta carpeta:
+
+```bash
+C:/Python312/python.exe -m pytest tests/ -v
+```
+
+Cubren lo que sostiene que el contenido sea correcto: el solucionador
+algebraico, la corrección a solución entera (conservando paréntesis), la
+verificación de respuestas por sustitución, el troceado del corpus, el anclaje
+documental y el respaldo ante caída del servicio. CP06 y CP07 llaman al modelo
+de verdad, así que necesitan `ollama serve`; si no está levantado se saltan
+solos y el resto sigue corriendo. Detalle completo en `tests/README.md`.
+
 ## Pendientes
 
 Las cuatro líneas declaradas en el borrador de tesis:
