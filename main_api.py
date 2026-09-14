@@ -3,6 +3,7 @@ print("Iniciando el servidor... (cargar el modelo de embeddings tarda"
 
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from seudonimo import hash_nombre, siguiente_codigo
 from database import SessionLocal, Student, PrePostTest
 from rag_engine import load_knowledge_base
 from content_generator import generate_explanation, generate_exercises, give_feedback
@@ -51,8 +52,13 @@ def serve_js():
 
 @app.route('/students/<name>', methods=['GET'])
 def get_student(name):
+    """Busca al participante por la huella de su nombre.
+
+    El nombre llega para poder reconocerlo, pero no se guarda ni se devuelve:
+    lo que sale es el seudonimo.
+    """
     db = SessionLocal()
-    student = db.query(Student).filter_by(name=name).first()
+    student = db.query(Student).filter_by(name_hash=hash_nombre(name)).first()
     db.close()
     
     if student:
@@ -70,8 +76,20 @@ def create_student():
     data = request.json
     db = SessionLocal()
     
+    # El nombre que llega solo sirve para calcular la huella; no se almacena.
+    huella = hash_nombre(data['name'])
+    existente = db.query(Student).filter_by(name_hash=huella).first()
+    if existente is not None:
+        datos = {"success": True, "id": existente.id, "name": existente.name,
+                 "level": existente.level, "level_score": existente.level_score}
+        db.close()
+        return jsonify(datos)
+
+    codigo = siguiente_codigo(c for (c,) in db.query(Student.name).all())
+
     student = Student(
-        name=data['name'],
+        name=codigo,
+        name_hash=huella,
         level=data.get('level', 'basico'),
         level_score=data.get('level_score', 50),
         diagnostic_results=data.get('diagnostic_results', {}),

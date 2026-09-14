@@ -39,6 +39,10 @@ async function login() {
         return;
     }
 
+    // El nombre se queda en el navegador para saludar; al servidor solo
+    // llega para calcular su huella y nunca se almacena (ver seudonimo.py).
+    currentStudentName = name;
+
     showLoader(true);
     try {
         // Primero verificar si el estudiante ya existe
@@ -303,13 +307,15 @@ document.getElementById("btn-cancel-diagnostic").addEventListener("click", () =>
 
 // ========== DASHBOARD ==========
 function loadDashboard() {
-    document.getElementById("dashboard-name").textContent = `Bienvenido, ${currentStudent.name}`;
+    const saludo = currentStudentName || currentStudent.name;
+    document.getElementById("dashboard-name").textContent = `Bienvenido, ${saludo}`;
     document.getElementById("dashboard-level").textContent = LEVEL_LABELS[currentStudent.level] || currentStudent.level;
     showView("view-dashboard");
 }
 
 document.getElementById("btn-logout").addEventListener("click", () => {
     currentStudent = null;
+    currentStudentName = null;
     document.getElementById("input-name").value = "";
     document.getElementById("welcome-error").classList.add("hidden");
     showView("view-welcome");

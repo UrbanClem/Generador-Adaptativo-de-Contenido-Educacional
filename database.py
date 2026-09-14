@@ -16,7 +16,11 @@ Base = declarative_base()
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
+    # `name` guarda el SEUDONIMO ("E01"), no el nombre del estudiante.
+    # El nombre real no se almacena: ver seudonimo.py y el apartado 3.6.2.
     name = Column(String, nullable=False)
+    # Huella con sal del nombre, unica forma de reconocer a quien vuelve.
+    name_hash = Column(String, index=True)
     level = Column(String, nullable=False)
     level_score = Column(Float, default=0.0)
     common_errors = Column(JSON, default=list)

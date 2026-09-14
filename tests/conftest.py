@@ -42,17 +42,26 @@ necesita_llm = pytest.mark.skipif(
 
 @pytest.fixture
 def alumno():
-    """Crea un alumno de prueba y devuelve su id."""
+    """Crea un participante de prueba y devuelve su id.
+
+    Se da de alta igual que lo hace la aplicacion: con seudonimo y huella, no
+    con el nombre. Asi las pruebas reflejan el almacenamiento real.
+    """
+    from seudonimo import hash_nombre, siguiente_codigo
+
     db = SessionLocal()
-    a = Student(name="Alumno de prueba", level="basico")
+    codigo = siguiente_codigo(c for (c,) in db.query(Student.name).all())
+    a = Student(name=codigo, name_hash=hash_nombre("Participante de prueba"),
+                level="basico")
     db.add(a)
     db.commit()
-    sid = a.id
+    sid, cod = a.id, a.name
     db.close()
-    return sid
+    return sid, cod
 
 
 @pytest.fixture
 def perfil(alumno):
     from cognitive_diagnostic import CognitiveDiagnosticProfile
-    return CognitiveDiagnosticProfile(alumno, "Alumno de prueba")
+    sid, codigo = alumno
+    return CognitiveDiagnosticProfile(sid, codigo)

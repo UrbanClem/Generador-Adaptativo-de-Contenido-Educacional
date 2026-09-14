@@ -7,26 +7,32 @@ modelo de lenguaje local y recuperación sobre un corpus propio.
 
 ## Cómo correrlo
 
+Desde cero, recién clonado:
+
 ```bash
-python main_api.py          # http://localhost:5000
+git clone git@github.com:UrbanClem/Generador-Adaptativo-de-Contenido-Educacional.git
+cd Generador-Adaptativo-de-Contenido-Educacional
+
+pip install -r requirements.txt     # Python 3.12
+ollama pull mistral                 # ~4 GB, una sola vez
+ollama serve                        # en otra terminal, se queda corriendo
+
+python main_api.py                  # http://localhost:5000
 ```
 
-Requisitos:
+Para comprobar que quedó bien instalado:
 
-1. **Ollama** con el modelo descargado:
-
-   ```bash
-   ollama pull mistral
-   ```
-
-2. **Paquetes de Python** (Python 3.12):
-
-   ```bash
-   pip install flask flask-cors sqlalchemy sympy sentence-transformers chromadb ollama python-dotenv
-   ```
+```bash
+pytest tests/ -v                    # 34 pruebas, entre 1 y 2 minutos
+```
 
 No hace falta instalar nada de base de datos: por defecto usa **SQLite**, en
-`education.db`, que se crea solo la primera vez.
+`education.db`, que se crea sola la primera vez. Tampoco hay que indexar el
+corpus a mano: la base vectorial se construye en el primer arranque a partir
+de los documentos de `knowledge/`, y eso tarda un poco más que los siguientes.
+
+`education.db` **no está en el repositorio** y no debe subirse: guarda los
+datos de las sesiones. Cada quien tiene la suya.
 
 ## Configuración
 
@@ -96,7 +102,7 @@ mucho más rápido, pero inventa más ecuaciones mal planteadas.
 
 ## Pruebas
 
-Hay **25 pruebas automatizadas** en `tests/`: 16 unitarias y los 9 casos
+Hay **34 pruebas automatizadas** en `tests/`: 16 unitarias, 9 de seudonimización y los 9 casos
 funcionales CP01–CP09 de la tabla 13 del documento de tesis. Se corren desde
 esta carpeta:
 
@@ -110,6 +116,24 @@ verificación de respuestas por sustitución, el troceado del corpus, el anclaje
 documental y el respaldo ante caída del servicio. CP06 y CP07 llaman al modelo
 de verdad, así que necesitan `ollama serve`; si no está levantado se saltan
 solos y el resto sigue corriendo. Detalle completo en `tests/README.md`.
+
+## Datos de los participantes
+
+El nombre que escribe el estudiante **no se guarda**. `seudonimo.py` calcula
+una huella con sal (SHA-256) y la base almacena un código correlativo —`E01`,
+`E02`— junto con esa huella. Quien abra `education.db` ve el código y una
+cadena hexadecimal: puede seguir el avance de un participante a lo largo de la
+sesión, que es lo que la investigación necesita, sin saber de quién se trata.
+
+El nombre escrito se queda únicamente en el navegador, para el saludo de la
+pantalla principal, y se borra al cerrar sesión.
+
+La sal se lee de `SEUDONIMO_SALT`. **Para las sesiones de evaluación conviene
+poner una propia** en el `.env`: con la de por defecto, alguien que conozca el
+código podría probar nombres hasta dar con la huella.
+
+Esto cumple lo que compromete el apartado 3.6.2 del documento de tesis, y las
+pruebas de `tests/test_seudonimo.py` lo verifican.
 
 ## Pendientes
 

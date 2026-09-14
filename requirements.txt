@@ -1,0 +1,29 @@
+# Prototipo del Generador Adaptativo de Contenidos Educativos con IA
+# Versiones con las que corre y pasa la suite de pruebas (septiembre de 2026).
+#
+#   pip install -r requirements.txt
+#
+# Aparte hace falta Ollama con el modelo de config.py:
+#   ollama pull mistral
+
+Flask==3.1.3
+flask-cors==6.0.2
+SQLAlchemy==2.0.49
+python-dotenv==1.1.1
+
+# Recuperacion: base vectorial y modelo de embeddings
+chromadb==1.5.9
+sentence-transformers==5.5.0
+
+# Generacion local
+ollama==0.6.2
+
+# Verificacion matematica: las respuestas las calcula sympy, no el modelo
+sympy==1.14.0
+
+# Pruebas
+pytest==9.1.1
+
+# Opcionales, solo si se cambia de motor en config.py:
+#   psycopg2-binary   para volver a PostgreSQL
+#   openai            para contrastar contra un modelo en la nube
