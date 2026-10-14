@@ -2,7 +2,7 @@ from sentence_transformers import SentenceTransformer
 import chromadb
 from chromadb.utils import embedding_functions
 import os
-from config import OLLAMA_MODEL, KNOWLEDGE_DIR, CHROMA_DIR
+from config import OLLAMA_MODEL, KNOWLEDGE_DIR, KNOWLEDGE_DOCENTE, CHROMA_DIR
 
 # Cargar modelo de embeddings open-source
 embedder = SentenceTransformer('all-MiniLM-L6-v2')
@@ -53,8 +53,35 @@ def _troceada():
     return bool(ids) and "#" in ids[0]
 
 
-def load_knowledge_base(folder_path=KNOWLEDGE_DIR, recargar=False):
-    """Carga documentos .txt como base de conocimiento, troceados"""
+def archivos_corpus():
+    """Lista los documentos .txt del corpus: primero el material de referencia
+    y despues el que subio el docente (RF11).
+
+    Devuelve triples (ruta_completa, nombre, es_docente). El nombre es lo que se
+    cita como fuente; los archivos del docente se guardan en una carpeta aparte
+    para poder borrarlos sin tocar el corpus base.
+    """
+    archivos = []
+    for carpeta, es_docente in ((KNOWLEDGE_DIR, False), (KNOWLEDGE_DOCENTE, True)):
+        if not os.path.isdir(carpeta):
+            continue
+        for nombre in sorted(os.listdir(carpeta)):
+            if nombre.endswith(".txt"):
+                archivos.append((os.path.join(carpeta, nombre), nombre, es_docente))
+    return archivos
+
+
+def _clave_indice(nombre, es_docente):
+    """Identificador unico dentro de ChromaDB (evita choques entre carpetas)."""
+    return ("docente/" + nombre) if es_docente else nombre
+
+
+def load_knowledge_base(folder_path=None, recargar=False):
+    """Carga documentos .txt del corpus (referencia y del docente), troceados.
+
+    Con `recargar=True` se rehace el indice por completo; es lo que se invoca
+    cuando el docente sube o borra material (RF11).
+    """
     global collection
 
     if collection.count() > 0 and _troceada() and not recargar:
@@ -65,18 +92,58 @@ def load_knowledge_base(folder_path=KNOWLEDGE_DIR, recargar=False):
     chroma_client.delete_collection(name="knowledge_base")
     collection = _crear_coleccion()
 
-    for filename in sorted(os.listdir(folder_path)):
-        if filename.endswith(".txt"):
-            with open(os.path.join(folder_path, filename), "r", encoding="utf-8") as f:
-                content = f.read()
-            titulo = content.strip().split("\n")[0].strip()
-            fragmentos = trocear(content, titulo)
-            collection.add(
-                documents=fragmentos,
-                metadatas=[{"source": filename, "fragmento": i} for i in range(len(fragmentos))],
-                ids=[f"{filename}#{i}" for i in range(len(fragmentos))]
-            )
+    if folder_path is not None:
+        # Compatibilidad: una sola carpeta, sin distinguir origen
+        entradas = []
+        if os.path.isdir(folder_path):
+            for nombre in sorted(os.listdir(folder_path)):
+                if nombre.endswith(".txt"):
+                    entradas.append((os.path.join(folder_path, nombre), nombre, False))
+    else:
+        entradas = archivos_corpus()
+
+    for ruta, nombre, es_docente in entradas:
+        with open(ruta, "r", encoding="utf-8") as f:
+            content = f.read()
+        titulo = content.strip().split("\n")[0].strip()
+        fragmentos = trocear(content, titulo)
+        collection.add(
+            documents=fragmentos,
+            metadatas=[{"source": nombre, "fragmento": i, "docente": es_docente}
+                       for i in range(len(fragmentos))],
+            ids=[f"{_clave_indice(nombre, es_docente)}#{i}" for i in range(len(fragmentos))]
+        )
     print(f"Cargados {collection.count()} fragmentos")
+
+
+def recargar_knowledge_base():
+    """Reindexa el corpus completo (se usa tras subir o borrar material)."""
+    load_knowledge_base(recargar=True)
+    return collection.count()
+
+
+def info_corpus():
+    """Describe los documentos del corpus para el panel del docente.
+
+    Devuelve una lista de dicts con nombre, si es del docente, su tamano y
+    cuantos fragmentos produce.
+    """
+    info = []
+    for ruta, nombre, es_docente in archivos_corpus():
+        try:
+            with open(ruta, "r", encoding="utf-8") as f:
+                content = f.read()
+        except OSError:
+            continue
+        titulo = content.strip().split("\n")[0].strip()
+        info.append({
+            "nombre": nombre,
+            "docente": es_docente,
+            "tamano": len(content),
+            "fragmentos": len(trocear(content, titulo)),
+        })
+    return info
+
 
 
 def retrieve_passages(query, n_results=3):
@@ -150,12 +217,8 @@ def retrieve_pertinentes(tema, n_results=3):
 def temas_disponibles():
     """Titulos de los documentos del corpus, para decir que si esta cubierto."""
     titulos = []
-    if not os.path.isdir(KNOWLEDGE_DIR):
-        return titulos
-    for filename in sorted(os.listdir(KNOWLEDGE_DIR)):
-        if not filename.endswith(".txt"):
-            continue
-        with open(os.path.join(KNOWLEDGE_DIR, filename), "r", encoding="utf-8") as f:
+    for ruta, _nombre, _docente in archivos_corpus():
+        with open(ruta, "r", encoding="utf-8") as f:
             titulo = f.readline().strip()
         # Los documentos viejos no traen titulo, arrancan con el texto corrido
         if not titulo or titulo != titulo.upper():

@@ -502,3 +502,447 @@ input[type="text"]:focus {
     margin-bottom: 8px;
     color: #1d4ed8;
 }
+
+/* ===================== PANEL DEL DOCENTE ===================== */
+
+.btn-link {
+    display: block;
+    width: 100%;
+    margin-top: 14px;
+    background: none;
+    border: none;
+    color: #2563eb;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.view.wide {
+    max-width: 780px;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+}
+
+select,
+textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #d1dce8;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1a2e4a;
+    outline: none;
+    background: #fdfdfd;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+select:focus,
+textarea:focus {
+    border-color: #2563eb;
+    background: #fff;
+}
+
+textarea {
+    resize: vertical;
+}
+
+input[type="date"],
+input[type="number"] {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #d1dce8;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #1a2e4a;
+    outline: none;
+    background: #fdfdfd;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+input[type="date"]:focus,
+input[type="number"]:focus {
+    border-color: #2563eb;
+    background: #fff;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    color: #3d4f63;
+    margin-bottom: 20px;
+    cursor: pointer;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 20px 0 16px;
+    border-bottom: 1.5px solid #e2eaf3;
+}
+
+.filter-tabs .tab {
+    background: none;
+    border: none;
+    border-bottom: 2.5px solid transparent;
+    padding: 8px 14px;
+    color: #6b7c93;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.filter-tabs .tab.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+}
+
+.assignments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.assignment-card {
+    background: #f8fafc;
+    border: 1.5px solid #e2eaf3;
+    border-left: 4px solid #2563eb;
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+
+.assignment-card.tipo-actividad {
+    border-left-color: #10b981;
+}
+
+.assignment-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.assignment-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1a2e4a;
+}
+
+.assignment-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.badge-tipo-tarea {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.badge-tipo-actividad {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.badge-neutral {
+    background: #eef2f7;
+    color: #475569;
+}
+
+.assignment-desc {
+    color: #475569;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 10px;
+}
+
+.assignment-toggle {
+    background: none;
+    border: none;
+    color: #2563eb;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.assignment-detail {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed #d1dce8;
+}
+
+.assignment-detail h4 {
+    color: #1a2e4a;
+    font-size: 0.92rem;
+    margin-bottom: 8px;
+}
+
+.assignment-detail ol {
+    margin: 0 0 10px 20px;
+    color: #1a2e4a;
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+.assignment-detail .answer {
+    color: #065f46;
+    font-weight: 600;
+}
+
+.assignment-explanation {
+    white-space: pre-wrap;
+    color: #475569;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    background: #fff;
+    padding: 12px;
+    border-radius: 8px;
+}
+
+.btn-delete {
+    background: none;
+    border: 1.5px solid #fca5a5;
+    color: #dc2626;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-delete:hover {
+    background: #fee2e2;
+}
+
+.empty-msg {
+    text-align: center;
+    color: #6b7c93;
+    font-size: 0.9rem;
+    padding: 24px 0;
+}
+
+.generated-preview {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1.5px solid #e2eaf3;
+    border-radius: 10px;
+}
+
+.generated-preview h4 {
+    color: #1a2e4a;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+}
+
+.generated-preview ol {
+    margin: 0 0 10px 20px;
+    color: #1a2e4a;
+    font-size: 0.9rem;
+    line-height: 1.7;
+}
+
+.exercise-remove {
+    background: none;
+    border: none;
+    color: #dc2626;
+    cursor: pointer;
+    font-size: 0.78rem;
+    margin-left: 6px;
+}
+
+/* ===================== REVISIÓN DE MATERIAL / CORPUS / MÉTRICAS ===================== */
+
+.teacher-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    padding: 8px 14px;
+    border: 1.5px solid #e2eaf3;
+    background: #f8fafc;
+    color: #475569;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.tab-btn.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+}
+
+.review-area {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1.5px solid #e2eaf3;
+}
+
+.review-timer {
+    display: inline-block;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+}
+
+.review-area textarea {
+    min-height: 180px;
+    font-family: inherit;
+    line-height: 1.6;
+}
+
+.review-fragments {
+    margin-top: 20px;
+}
+
+.fragment-card {
+    background: #f8fafc;
+    border: 1.5px solid #e2eaf3;
+    border-left: 4px solid #10b981;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+}
+
+.fragment-source {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #065f46;
+    margin-bottom: 6px;
+}
+
+.fragment-text {
+    font-size: 0.85rem;
+    color: #475569;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.review-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.review-actions .btn-primary,
+.review-actions .btn-secondary {
+    width: auto;
+    flex: 1 1 auto;
+}
+
+.review-exercise {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid #2563eb;
+}
+
+.review-exercise .form-group {
+    margin-bottom: 10px;
+}
+
+.review-exercise label {
+    font-size: 0.72rem;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.metric-card {
+    background: #f8fafc;
+    border: 1.5px solid #e2eaf3;
+    border-radius: 10px;
+    padding: 18px 16px;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.7rem;
+    font-weight: 700;
+    color: #2563eb;
+    line-height: 1.2;
+}
+
+.metric-label {
+    font-size: 0.78rem;
+    color: #6b7c93;
+    margin-top: 6px;
+}
+
+input[type="file"] {
+    width: 100%;
+    font-size: 0.88rem;
+    color: #475569;
+}
+
+.decision-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.decision-aceptado {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.decision-editado {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.decision-rechazado {
+    background: #fee2e2;
+    color: #991b1b;
+}

@@ -25,4 +25,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///" + _SQLITE_PATH)
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:latest")
 
 KNOWLEDGE_DIR = os.path.join(BASE_DIR, "knowledge")
+# Material que sube el docente (RF11). Vive aparte del corpus de referencia
+# para poder distinguir el uno del otro y borrar solo lo que el docente cargó.
+KNOWLEDGE_DOCENTE = os.path.join(KNOWLEDGE_DIR, "docente")
 CHROMA_DIR = os.path.join(BASE_DIR, "chroma_db")

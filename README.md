@@ -23,7 +23,7 @@ python main_api.py                  # http://localhost:5000
 Para comprobar que quedó bien instalado:
 
 ```bash
-pytest tests/ -v                    # 34 pruebas, entre 1 y 2 minutos
+pytest tests/ -v                    # 49 pruebas, entre 1 y 2 minutos
 ```
 
 No hace falta instalar nada de base de datos: por defecto usa **SQLite**, en
@@ -62,10 +62,12 @@ mucho más rápido, pero inventa más ecuaciones mal planteadas.
 | `database.py` | Modelos de SQLAlchemy; crea las tablas y agrega columnas faltantes |
 | `cognitive_diagnostic.py` | Perfil cognitivo, matriz Q, generación de reactivos y solucionador con sympy |
 | `content_generator.py` | Explicaciones, ejercicios y retroalimentación |
-| `rag_engine.py` | Índice vectorial (ChromaDB) sobre `knowledge/` |
+| `rag_engine.py` | Índice vectorial (ChromaDB) sobre `knowledge/` y el corpus del docente |
+| `docente_utils.py` | Medidas objetivas del panel del docente y saneo de nombres del corpus |
 | `student_profile.py`, `dynamic_profile.py`, `learning_metrics.py` | Perfil del estudiante y métricas |
-| `frontend/` | Interfaz del estudiante (HTML, CSS y JavaScript) |
-| `knowledge/` | Corpus de referencia en texto plano |
+| `frontend/` | Interfaz del estudiante y panel del docente (HTML, CSS y JavaScript) |
+| `knowledge/` | Corpus de referencia en texto plano (`knowledge/docente/` guarda lo que sube el docente) |
+| `instrumentos/` | Rúbrica de calidad, SUS, cuestionario de aceptación, encuesta de carga y guion de entrevista |
 | `main.py` | Versión de línea de comandos, anterior a la web |
 
 ## Notas
@@ -82,11 +84,16 @@ mucho más rápido, pero inventa más ecuaciones mal planteadas.
   servidor y queda guardada en `chroma_db/`. Los documentos se guardan
   **troceados** en fragmentos de ~700 caracteres, cortados en los renglones en
   blanco para no partir un ejemplo a la mitad; los 13 archivos de `knowledge/`
-  dan 22 fragmentos.
+  dan 22 fragmentos. El docente puede subir sus propios `.txt` desde la sección
+  *Corpus* del panel: se guardan en `knowledge/docente/` y el índice se
+  reconstruye solo (RF11).
 - **Las explicaciones salen del material del curso.** `generate_explanation()`
   recupera tres fragmentos, descarta los que no tratan el tema y solo con los
-  que quedan arma el prompt; `/explain` devuelve además la lista de archivos
-  usados, que el frontend muestra al pie de la explicación.
+  que quedan arma el prompt. `/explain` devuelve los archivos usados y los
+  **fragmentos completos** que sustentan la respuesta (RF12), que el frontend
+  muestra al pie de la explicación. Los ejercicios (`/exercises`) y la
+  retroalimentación (`/feedback`) también se anclan al material recuperado, no
+  solo las explicaciones.
 - **Si el tema no está en el corpus, no se explica nada.** Se responde que el
   material no lo cubre y se listan los temas que sí, sin llamar al modelo. La
   regla en el prompt no bastaba: con "derivadas" mistral se inventó una
@@ -102,7 +109,7 @@ mucho más rápido, pero inventa más ecuaciones mal planteadas.
 
 ## Pruebas
 
-Hay **34 pruebas automatizadas** en `tests/`: 16 unitarias, 9 de seudonimización y los 9 casos
+Hay **49 pruebas automatizadas** en `tests/`: 16 unitarias, 9 de seudonimización, 15 del panel del docente y los 9 casos
 funcionales CP01–CP09 de la tabla 13 del documento de tesis. Se corren desde
 esta carpeta:
 
@@ -137,13 +144,26 @@ pruebas de `tests/test_seudonimo.py` lo verifican.
 
 ## Pendientes
 
-Las cuatro líneas declaradas en el borrador de tesis:
+Las cuatro líneas declaradas en el borrador de tesis ya están cubiertas:
 
-1. Interfaz de docente (no existe todavía).
-2. Carga de corpus propio por parte del docente.
-3. Mostrar el fragmento de origen junto a cada material generado (hecho a
-   medias: se muestra el archivo, falta el fragmento).
-4. Registrar la decisión de aceptación o edición del docente.
+1. ~~Interfaz de docente (no existe todavía).~~ Hecha: panel del docente para
+   crear tareas y actividades (`/teacher/assignments`) y para **revisar, editar,
+   aceptar o rechazar** material generado (`/teacher/material/generate`,
+   `/teacher/material/decision`).
+2. ~~Carga de corpus propio por parte del docente.~~ Hecha: sección *Corpus* del
+   panel y endpoints `GET/POST /teacher/corpus`, `DELETE /teacher/corpus/<nombre>`;
+   al subir o borrar un documento el índice se reconstruye solo.
+3. ~~Mostrar el fragmento de origen junto a cada material generado.~~ Hecho:
+   `/explain`, `/exercises` y el generador del panel devuelven los fragmentos
+   completos (texto y archivo), no solo el nombre del archivo.
+4. ~~Registrar la decisión de aceptación o edición del docente.~~ Hecho: cada
+   decisión se guarda con la decisión, el tiempo empleado y los fragmentos
+   (`material_reviews`); `GET /teacher/metrics` calcula la proporción de
+   material aceptado sin edición y el tiempo de edición por material.
 
-Además, los ejercicios y la retroalimentación todavía no usan la recuperación:
-solo las explicaciones están ancladas al material.
+Además, los ejercicios y la retroalimentación ya usan la recuperación: se anclan
+a los fragmentos del corpus igual que las explicaciones.
+
+Los instrumentos de evaluación del apartado 3.6 (rúbrica de calidad, SUS,
+cuestionario de aceptación, encuesta de carga y guion de entrevista) están en
+`instrumentos/`, listos para su validación por juicio de expertos.

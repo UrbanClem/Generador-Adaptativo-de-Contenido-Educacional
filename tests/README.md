@@ -1,7 +1,8 @@
 # Pruebas del prototipo
 
 Conjunto de pruebas automatizadas del apartado 3.6 del documento de tesis.
-Son **25**: 16 unitarias y los 9 casos funcionales CP01–CP09 de la tabla 13.
+Son **49**: 16 unitarias, 9 de seudonimización, 15 del panel del docente y los
+9 casos funcionales CP01–CP09 de la tabla 13.
 
 ## Cómo se corren
 
@@ -51,6 +52,20 @@ modelo de verdad, no lo simulan.
   - El banco de respaldo entrega la cantidad pedida y **sus respuestas son
     correctas**: si el banco trae un error, el estudiante lo ve justo cuando el
     modelo falló.
+
+- **`test_docente.py`** — las funciones del panel del docente que no dependen
+  del modelo:
+  - `calcular_metricas` (las dos medidas objetivas del apartado 3.6.1) sobre
+    diccionarios y sobre filas de SQLAlchemy.
+  - `nombre_corpus_seguro` acepta nombres sin extensión o con ruta y **rechaza**
+    los vacíos y los que intentan escapar de la carpeta (`..`).
+  - `MaterialReview` y `Assignment` se guardan y se leen con sus campos JSON
+    (fragmentos y ejercicios) intactos.
+  - La explicación devuelve los **fragmentos** completos (RF12) y, si el tema no
+    está en el corpus, avisa sin generar.
+  - Los ejercicios y la retroalimentación **incluyen el material recuperado en
+    el prompt** (se intercepta la llamada al modelo para comprobarlo, sin
+    depender de que Ollama esté levantado).
 
 - **`test_casos_cp.py`** — un caso por clave, con el resultado esperado de la
   tabla 13:

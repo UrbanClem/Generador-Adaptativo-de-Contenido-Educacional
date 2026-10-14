@@ -4,10 +4,12 @@ print("Iniciando el servidor... (cargar el modelo de embeddings tarda"
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from seudonimo import hash_nombre, siguiente_codigo
-from database import SessionLocal, Student, PrePostTest
-from rag_engine import load_knowledge_base
+from database import SessionLocal, Student, PrePostTest, Assignment, MaterialReview
+from rag_engine import load_knowledge_base, recargar_knowledge_base, info_corpus, retrieve_pertinentes
 from content_generator import generate_explanation, generate_exercises, give_feedback
 from cognitive_diagnostic import CognitiveDiagnosticProfile, generate_adaptive_questions, evaluate_answer_semantic
+from config import KNOWLEDGE_DOCENTE
+from docente_utils import nombre_corpus_seguro, calcular_metricas
 from datetime import datetime
 import time
 import os
@@ -338,25 +340,39 @@ def explain():
     data = request.json
     topic = data.get('topic')
     student_level = data.get('student_level', 'basico')
-    explanation, fuentes = generate_explanation(topic, student_level, con_fuentes=True)
+    explanation, fragmentos = generate_explanation(topic, student_level,
+                                                   con_fragmentos=True)
+    fuentes = []
+    for f in fragmentos:
+        if f["fuente"] and f["fuente"] not in fuentes:
+            fuentes.append(f["fuente"])
     return jsonify({"content": explanation, "topic": topic, "level": student_level,
-                    "fuentes": fuentes})
+                    "fuentes": fuentes, "fragmentos": fragmentos})
 
 @app.route('/exercises', methods=['POST'])
 def exercises():
-    """Genera ejercicios de práctica - formato estructurado para respuestas"""
+    """Genera ejercicios de práctica - formato estructurado para respuestas
+
+    Los ejercicios se anclan al corpus con los fragmentos recuperados para el
+    tema, igual que las explicaciones (extensión del anclaje documental).
+    """
     data = request.json
     topic = data.get('topic', 'matemáticas')
     student_level = data.get('student_level', 'basico')
     quantity = data.get('quantity', 3)
     
     from content_generator import generate_exercises_with_answers
-    exercises = generate_exercises_with_answers(topic, student_level, quantity)
-    
+    pasajes = retrieve_pertinentes(topic, n_results=3)
+    material = '\n\n---\n\n'.join(p["texto"] for p in pasajes) or None
+    exercises = generate_exercises_with_answers(topic, student_level, quantity,
+                                                material=material)
+    fragmentos = [{"fuente": p["fuente"], "texto": p["texto"]} for p in pasajes]
+
     return jsonify({
         "exercises": exercises,
         "topic": topic,
-        "level": student_level
+        "level": student_level,
+        "fragmentos": fragmentos
     })
 
 
@@ -366,7 +382,13 @@ def feedback():
     student_answer = data.get('student_answer')
     correct_answer = data.get('correct_answer')
     student_level = data.get('student_level', 'basico')
-    feedback_text = give_feedback(student_answer, correct_answer, student_level)
+    topic = data.get('topic')
+    material = None
+    if topic:
+        pasajes = retrieve_pertinentes(topic, n_results=3)
+        material = '\n\n---\n\n'.join(p["texto"] for p in pasajes) or None
+    feedback_text = give_feedback(student_answer, correct_answer, student_level,
+                                  material=material)
     return jsonify({"content": feedback_text, "is_correct": student_answer.strip() == correct_answer.strip()})
 
 # ========== ENDPOINTS DE MÉTRICAS ==========
@@ -416,6 +438,272 @@ def get_learning_gain():
         "gain": gain,
         "normalized_gain": normalized_gain
     })
+
+# ========== ENDPOINTS DE DOCENTES (TAREAS Y ACTIVIDADES) ==========
+
+def _assignment_dict(a):
+    """Convierte una fila Assignment en JSON (se llama antes de cerrar la sesión)."""
+    return {
+        "id": a.id,
+        "tipo": a.tipo,
+        "titulo": a.titulo,
+        "descripcion": a.descripcion or "",
+        "tema": a.tema or "",
+        "level": a.level,
+        "due_date": a.due_date,
+        "content": a.content or {},
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    }
+
+@app.route('/teacher/assignments', methods=['GET'])
+def list_assignments():
+    """Lista las tareas y actividades. Con ?tipo=tarea o ?tipo=actividad filtra."""
+    tipo = request.args.get('tipo')
+    db = SessionLocal()
+    query = db.query(Assignment)
+    if tipo in ('tarea', 'actividad'):
+        query = query.filter_by(tipo=tipo)
+    items = query.order_by(Assignment.created_at.desc()).all()
+    resultado = [_assignment_dict(a) for a in items]
+    db.close()
+    return jsonify(resultado)
+
+@app.route('/teacher/assignments', methods=['POST'])
+def create_assignment():
+    """Crea una tarea o actividad con lo que haya armado el docente."""
+    data = request.json or {}
+    titulo = (data.get('titulo') or '').strip()
+    if not titulo:
+        return jsonify({"error": "El título es obligatorio"}), 400
+
+    tipo = data.get('tipo', 'tarea')
+    if tipo not in ('tarea', 'actividad'):
+        tipo = 'tarea'
+
+    db = SessionLocal()
+    assignment = Assignment(
+        tipo=tipo,
+        titulo=titulo,
+        descripcion=data.get('descripcion', ''),
+        tema=data.get('tema', ''),
+        level=data.get('level', 'basico'),
+        due_date=data.get('due_date') or None,
+        content=data.get('content', {}) or {}
+    )
+    db.add(assignment)
+    db.commit()
+    result = _assignment_dict(assignment)
+    db.close()
+    return jsonify({"success": True, "assignment": result}), 201
+
+@app.route('/teacher/assignments/<int:assignment_id>', methods=['DELETE'])
+def delete_assignment(assignment_id):
+    db = SessionLocal()
+    assignment = db.query(Assignment).filter_by(id=assignment_id).first()
+    if not assignment:
+        db.close()
+        return jsonify({"error": "Tarea o actividad no encontrada"}), 404
+    db.delete(assignment)
+    db.commit()
+    db.close()
+    return jsonify({"success": True})
+
+@app.route('/teacher/assignments/generate', methods=['POST'])
+def generate_assignment_content():
+    """Genera con IA el contenido de una tarea/actividad antes de guardarla.
+
+    No guarda nada: devuelve los ejercicios (y opcionalmente la explicación)
+    para que el docente los revise y los confirme al guardar.
+    """
+    data = request.json or {}
+    topic = (data.get('topic') or '').strip()
+    level = data.get('student_level', 'basico')
+    if not topic:
+        return jsonify({"error": "Indica un tema para generar el contenido"}), 400
+
+    try:
+        quantity = int(data.get('quantity', 3))
+    except (TypeError, ValueError):
+        quantity = 3
+    quantity = max(1, min(quantity, 10))
+
+    from content_generator import generate_exercises_with_answers, generate_explanation
+
+    exercises = generate_exercises_with_answers(topic, level, quantity)
+
+    explicacion = ""
+    fuentes = []
+    if data.get('incluir_explicacion'):
+        explicacion, fuentes = generate_explanation(topic, level, con_fuentes=True)
+
+    return jsonify({
+        "exercises": exercises,
+        "explicacion": explicacion,
+        "fuentes": fuentes,
+        "topic": topic,
+        "level": level
+    })
+
+# ========== ENDPOINTS DE REVISIÓN DE MATERIAL (RF10, RF12, RF13) ==========
+
+def _material_review_dict(m):
+    return {
+        "id": m.id,
+        "docente": m.docente or "",
+        "tipo": m.tipo,
+        "tema": m.tema or "",
+        "level": m.level,
+        "contenido_original": m.contenido_original or "",
+        "contenido_final": m.contenido_final or "",
+        "decision": m.decision,
+        "segundos": m.segundos or 0.0,
+        "fragmentos": m.fragmentos or [],
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    }
+
+@app.route('/teacher/material/generate', methods=['POST'])
+def generate_material_for_review():
+    """Genera material para que el docente lo revise (no lo guarda).
+
+    Devuelve el contenido generado y los fragmentos del corpus que lo
+    sustentan, para mostrarlos junto al material (RF12).
+    """
+    data = request.json or {}
+    tema = (data.get('tema') or '').strip()
+    tipo = data.get('tipo', 'explicacion')
+    level = data.get('level', 'basico')
+    if not tema:
+        return jsonify({"error": "Indica un tema"}), 400
+    if tipo not in ('explicacion', 'ejercicios'):
+        tipo = 'explicacion'
+
+    if tipo == 'explicacion':
+        texto, fragmentos = generate_explanation(tema, level, con_fragmentos=True)
+        contenido = {"texto": texto, "ejercicios": []}
+    else:
+        try:
+            quantity = int(data.get('quantity', 3))
+        except (TypeError, ValueError):
+            quantity = 3
+        quantity = max(1, min(quantity, 10))
+        from content_generator import generate_exercises_with_answers
+        pasajes = retrieve_pertinentes(tema, n_results=3)
+        material = '\n\n---\n\n'.join(p["texto"] for p in pasajes) or None
+        ejercicios = generate_exercises_with_answers(tema, level, quantity,
+                                                     material=material)
+        fragmentos = [{"fuente": p["fuente"], "texto": p["texto"]} for p in pasajes]
+        contenido = {"texto": "", "ejercicios": ejercicios}
+
+    return jsonify({
+        "tipo": tipo,
+        "tema": tema,
+        "level": level,
+        "contenido": contenido,
+        "fragmentos": fragmentos
+    })
+
+@app.route('/teacher/material/decision', methods=['POST'])
+def save_material_decision():
+    """Registra la decisión del docente y el tiempo empleado (RF13)."""
+    data = request.json or {}
+    decision = data.get('decision', 'aceptado')
+    if decision not in ('aceptado', 'editado', 'rechazado'):
+        return jsonify({"error": "Decisión inválida"}), 400
+
+    try:
+        segundos = float(data.get('segundos', 0))
+    except (TypeError, ValueError):
+        segundos = 0.0
+    segundos = max(0.0, segundos)
+
+    contenido_original = data.get('contenido_original', '') or ''
+    contenido_final = data.get('contenido_final')
+    if contenido_final is None:
+        contenido_final = contenido_original
+
+    db = SessionLocal()
+    review = MaterialReview(
+        docente=(data.get('docente') or '')[:120],
+        tipo=data.get('tipo', 'explicacion'),
+        tema=data.get('tema', ''),
+        level=data.get('level', 'basico'),
+        contenido_original=contenido_original,
+        contenido_final=contenido_final,
+        decision=decision,
+        segundos=segundos,
+        fragmentos=data.get('fragmentos', []) or []
+    )
+    db.add(review)
+    db.commit()
+    result = _material_review_dict(review)
+    db.close()
+    return jsonify({"success": True, "review": result}), 201
+
+@app.route('/teacher/materials', methods=['GET'])
+def list_material_reviews():
+    limite = request.args.get('limit', default=100, type=int)
+    db = SessionLocal()
+    items = (db.query(MaterialReview)
+               .order_by(MaterialReview.created_at.desc())
+               .limit(limite).all())
+    resultado = [_material_review_dict(m) for m in items]
+    db.close()
+    return jsonify(resultado)
+
+def _calcular_metricas(reviews):
+    """Envuelve la lógica de docente_utils para no repetirla."""
+    return calcular_metricas(reviews)
+
+@app.route('/teacher/metrics', methods=['GET'])
+def teacher_metrics():
+    db = SessionLocal()
+    reviews = db.query(MaterialReview).all()
+    metricas = _calcular_metricas(reviews)
+    db.close()
+    return jsonify(metricas)
+
+# ========== ENDPOINTS DE CORPUS PROPIO DEL DOCENTE (RF11) ==========
+
+def _nombre_corpus_seguro(nombre):
+    """Compatibilidad: delega en docente_utils."""
+    return nombre_corpus_seguro(nombre)
+
+@app.route('/teacher/corpus', methods=['GET'])
+def get_corpus():
+    return jsonify(info_corpus())
+
+@app.route('/teacher/corpus', methods=['POST'])
+def upload_corpus():
+    """Guarda un documento de texto del docente y reindexa (RF11)."""
+    data = request.json or {}
+    nombre = _nombre_corpus_seguro(data.get('nombre'))
+    contenido = data.get('contenido') or ''
+    if not nombre:
+        return jsonify({"error": "Nombre de archivo inválido"}), 400
+    if not contenido.strip():
+        return jsonify({"error": "El documento está vacío"}), 400
+
+    os.makedirs(KNOWLEDGE_DOCENTE, exist_ok=True)
+    ruta = os.path.join(KNOWLEDGE_DOCENTE, nombre)
+    with open(ruta, 'w', encoding='utf-8') as f:
+        f.write(contenido)
+
+    fragmentos = recargar_knowledge_base()
+    return jsonify({"success": True, "nombre": nombre,
+                    "fragmentos_indexados": fragmentos}), 201
+
+@app.route('/teacher/corpus/<nombre>', methods=['DELETE'])
+def delete_corpus(nombre):
+    """Borra un documento del docente (solo de su carpeta) y reindexa."""
+    nombre = _nombre_corpus_seguro(nombre)
+    if not nombre:
+        return jsonify({"error": "Nombre de archivo inválido"}), 400
+    ruta = os.path.join(KNOWLEDGE_DOCENTE, nombre)
+    if not os.path.exists(ruta):
+        return jsonify({"error": "Documento no encontrado"}), 404
+    os.remove(ruta)
+    recargar_knowledge_base()
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

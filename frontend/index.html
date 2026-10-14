@@ -27,6 +27,7 @@
                 <input type="text" id="input-name" placeholder="Ingresa tu nombre..." autocomplete="off" />
             </div>
             <button id="btn-enter" class="btn-primary">Comenzar</button>
+            <button id="btn-teacher-access" class="btn-link">¿Eres docente? Entra al panel</button>
             <p id="welcome-error" class="error-msg hidden"></p>
         </div>
     </div>
@@ -124,6 +125,198 @@
             <div id="exercises-results" class="result-box hidden"></div>
         </div>
     </div>
+    <!-- ========== VISTA: PANEL DEL DOCENTE ========== -->
+    <div id="view-teacher" class="view wide">
+        <div class="card">
+            <div class="dashboard-header">
+                <div>
+                    <h2>👩‍🏫 Panel del docente</h2>
+                    <p class="subtitle" style="margin-bottom: 0;">Crea y administra tareas y actividades</p>
+                </div>
+                <button id="btn-teacher-logout" class="btn-secondary">Salir</button>
+            </div>
+
+            <div class="teacher-nav">
+                <button class="tab-btn active" id="btn-teacher-home">📋 Tareas y actividades</button>
+                <button class="tab-btn" id="btn-teacher-review">🔍 Revisar material</button>
+                <button class="tab-btn" id="btn-teacher-corpus">📚 Corpus</button>
+                <button class="tab-btn" id="btn-teacher-metrics">📊 Métricas</button>
+            </div>
+
+            <button id="btn-new-assignment" class="btn-primary">➕ Nueva tarea o actividad</button>
+
+            <div class="filter-tabs">
+                <button class="tab active" data-filter="todas">Todas</button>
+                <button class="tab" data-filter="tarea">Tareas</button>
+                <button class="tab" data-filter="actividad">Actividades</button>
+            </div>
+
+            <div id="assignments-list" class="assignments-list"></div>
+            <p id="assignments-empty" class="empty-msg hidden">Todavía no has creado tareas ni actividades.</p>
+        </div>
+    </div>
+
+    <!-- ========== VISTA: CREAR TAREA / ACTIVIDAD ========== -->
+    <div id="view-teacher-create" class="view wide">
+        <div class="card">
+            <button class="btn-back" id="back-teacher-create">← Volver</button>
+            <h2>🆕 Nueva tarea o actividad</h2>
+            <p class="subtitle">Define los datos y, si quieres, deja que la IA proponga los ejercicios</p>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-assign-type">Tipo</label>
+                    <select id="input-assign-type">
+                        <option value="tarea">Tarea</option>
+                        <option value="actividad">Actividad</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="input-assign-level">Nivel</label>
+                    <select id="input-assign-level">
+                        <option value="basico">Básico</option>
+                        <option value="intermedio">Intermedio</option>
+                        <option value="avanzado">Avanzado</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="input-assign-title">Título</label>
+                <input type="text" id="input-assign-title" placeholder="Ej: Ecuaciones de primer grado" />
+            </div>
+
+            <div class="form-group">
+                <label for="input-assign-desc">Descripción / instrucciones</label>
+                <textarea id="input-assign-desc" rows="3" placeholder="Instrucciones para los estudiantes..."></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-assign-topic">Tema para generar ejercicios</label>
+                    <input type="text" id="input-assign-topic" placeholder="Ej: ecuaciones lineales" />
+                </div>
+                <div class="form-group">
+                    <label for="input-assign-quantity">Cantidad</label>
+                    <input type="number" id="input-assign-quantity" min="1" max="10" value="3" />
+                </div>
+            </div>
+
+            <div class="form-group" id="due-date-group">
+                <label for="input-assign-due">Fecha de entrega</label>
+                <input type="date" id="input-assign-due" />
+            </div>
+
+            <label class="checkbox-row">
+                <input type="checkbox" id="input-assign-explanation" />
+                Incluir una explicación generada con IA (más lento)
+            </label>
+
+            <button id="btn-generate-content" class="btn-secondary btn-block">✨ Generar contenido con IA</button>
+
+            <div id="generated-preview" class="generated-preview hidden"></div>
+
+            <button id="btn-save-assignment" class="btn-primary" style="margin-top: 20px;">Guardar</button>
+        </div>
+    </div>
+
+    <!-- ========== VISTA: REVISIÓN DE MATERIAL (DOCENTE) ========== -->
+    <div id="view-teacher-review" class="view wide">
+        <div class="card">
+            <button class="btn-back" id="back-teacher-review">← Volver</button>
+            <h2>🔍 Revisión de material</h2>
+            <p class="subtitle">Genera material, revísalo y decide si lo aceptas, lo editas o lo rechazas</p>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-review-tipo">Tipo</label>
+                    <select id="input-review-tipo">
+                        <option value="explicacion">Explicación</option>
+                        <option value="ejercicios">Ejercicios</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="input-review-level">Nivel</label>
+                    <select id="input-review-level">
+                        <option value="basico">Básico</option>
+                        <option value="intermedio">Intermedio</option>
+                        <option value="avanzado">Avanzado</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="input-review-tema">Tema</label>
+                    <input type="text" id="input-review-tema" placeholder="Ej: teorema de Pitágoras" />
+                </div>
+                <div class="form-group" id="review-quantity-group">
+                    <label for="input-review-quantity">Cantidad (ejercicios)</label>
+                    <input type="number" id="input-review-quantity" min="1" max="10" value="3" />
+                </div>
+            </div>
+
+            <button id="btn-review-generate" class="btn-primary">Generar material</button>
+
+            <div id="review-area" class="review-area hidden">
+                <div class="review-timer" id="review-timer">⏱ Tiempo de revisión: 0 s</div>
+
+                <h4>Contenido generado (editable)</h4>
+                <div id="review-editor"></div>
+
+                <div class="review-fragments">
+                    <h4>📄 Fragmentos del corpus que lo sustentan</h4>
+                    <div id="review-fragments-list"></div>
+                </div>
+
+                <div class="review-actions">
+                    <button id="btn-review-accept" class="btn-primary">✔ Aceptar sin cambios</button>
+                    <button id="btn-review-save" class="btn-secondary">💾 Guardar con cambios</button>
+                    <button id="btn-review-reject" class="btn-delete">✖ Rechazar</button>
+                </div>
+                <p id="review-msg" class="empty-msg hidden"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== VISTA: CORPUS DEL DOCENTE ========== -->
+    <div id="view-teacher-corpus" class="view wide">
+        <div class="card">
+            <button class="btn-back" id="back-teacher-corpus">← Volver</button>
+            <h2>📚 Corpus del curso</h2>
+            <p class="subtitle">Carga tus propios documentos en texto plano; el índice se reconstruye solo</p>
+
+            <div class="form-group">
+                <label for="input-corpus-file">Archivo .txt</label>
+                <input type="file" id="input-corpus-file" accept=".txt,text/plain" />
+            </div>
+            <div class="form-group">
+                <label for="input-corpus-text">…o pega el contenido</label>
+                <textarea id="input-corpus-text" rows="6" placeholder="Pega aquí el material del curso..."></textarea>
+            </div>
+            <div class="form-group">
+                <label for="input-corpus-name">Nombre del documento</label>
+                <input type="text" id="input-corpus-name" placeholder="mi_tema.txt" />
+            </div>
+            <button id="btn-corpus-upload" class="btn-primary">Subir y reindexar</button>
+
+            <h4 style="margin-top: 24px;">Documentos indexados</h4>
+            <div id="corpus-list" class="assignments-list"></div>
+        </div>
+    </div>
+
+    <!-- ========== VISTA: MÉTRICAS DEL DOCENTE ========== -->
+    <div id="view-teacher-metrics" class="view wide">
+        <div class="card">
+            <button class="btn-back" id="back-teacher-metrics">← Volver</button>
+            <h2>📊 Métricas del docente</h2>
+            <p class="subtitle">Proporción de material aceptado sin edición y tiempos de revisión</p>
+            <div id="metrics-cards" class="metrics-grid"></div>
+            <h4 style="margin-top: 24px;">Últimas decisiones</h4>
+            <div id="metrics-history" class="assignments-list"></div>
+        </div>
+    </div>
+
     <script src="/frontend/app.js"></script>
 </body>
 </html>

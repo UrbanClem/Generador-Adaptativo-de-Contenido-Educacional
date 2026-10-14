@@ -63,11 +63,56 @@ class CognitiveProfile(Base):
     response_history = Column(JSON, default=list)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Assignment(Base):
+    """Tarea o actividad creada por el docente desde su panel.
+
+    `tipo` distingue una tarea (con fecha de entrega) de una actividad de
+    práctica; en `content` se guarda lo que el docente generó o escribió,
+    normalmente {"ejercicios": [...], "explicacion": "..."}.
+    """
+    __tablename__ = "assignments"
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer, primary_key=True, index=True)
+    tipo = Column(String, nullable=False, default="tarea")
+    titulo = Column(String, nullable=False)
+    descripcion = Column(Text, default="")
+    tema = Column(String, default="")
+    level = Column(String, default="basico")
+    due_date = Column(String)
+    content = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class MaterialReview(Base):
+    """Decisión del docente sobre un material generado (RF10 y RF13).
+
+    Guarda lo que produjo el modelo (`contenido_original`), lo que quedó tras
+    la revisión (`contenido_final`), la decisión (aceptado/editado/rechazado),
+    los segundos empleados y los fragmentos del corpus que lo sustentan (RF12),
+    de modo que sea posible calcular la proporción de material aceptado sin
+    edición y el tiempo de edición por material.
+    """
+    __tablename__ = "material_reviews"
+    __table_args__ = {'extend_existing': True}
+    id = Column(Integer, primary_key=True, index=True)
+    docente = Column(String, default="")
+    tipo = Column(String, nullable=False, default="explicacion")  # explicacion | ejercicios
+    tema = Column(String, default="")
+    level = Column(String, default="basico")
+    contenido_original = Column(Text, default="")
+    contenido_final = Column(Text, default="")
+    decision = Column(String, nullable=False, default="aceptado")  # aceptado | editado | rechazado
+    segundos = Column(Float, default=0.0)
+    fragmentos = Column(JSON, default=list)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 MODELOS = [
     ("students", Student),
     ("exercise_results", ExerciseResult),
     ("pre_post_tests", PrePostTest),
     ("cognitive_profiles", CognitiveProfile),
+    ("assignments", Assignment),
+    ("material_reviews", MaterialReview),
 ]
 
 

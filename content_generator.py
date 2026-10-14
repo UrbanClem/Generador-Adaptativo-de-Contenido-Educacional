@@ -9,7 +9,7 @@ from config import OLLAMA_MODEL
 MODEL_NAME = OLLAMA_MODEL  # se configura con la variable OLLAMA_MODEL
 
 
-def generate_explanation(topic, student_level, con_fuentes=False):
+def generate_explanation(topic, student_level, con_fuentes=False, con_fragmentos=False):
     """Genera una explicación personalizada del tema, apoyada en el material
 
     Recupera de la base de conocimiento los fragmentos más parecidos al tema,
@@ -18,6 +18,10 @@ def generate_explanation(topic, student_level, con_fuentes=False):
     del modelo. Si no queda material, no se explica nada: pedirle al prompt que
     avise no funciona (con "derivadas" el modelo inventó una explicación, y
     equivocada, aunque la regla se lo prohibía).
+
+    Con `con_fuentes=True` devuelve además la lista de archivos usados; con
+    `con_fragmentos=True` devuelve los fragmentos completos (texto y fuente),
+    que es lo que exige la trazabilidad por fragmento (RF12).
     """
     pasajes = retrieve_pertinentes(topic, n_results=3)
     material = '\n\n---\n\n'.join(p["texto"] for p in pasajes)
@@ -25,6 +29,7 @@ def generate_explanation(topic, student_level, con_fuentes=False):
     for p in pasajes:
         if p["fuente"] and p["fuente"] not in fuentes:
             fuentes.append(p["fuente"])
+    fragmentos = [{"fuente": p["fuente"], "texto": p["texto"]} for p in pasajes]
 
     if not material:
         print(f"Sin material para '{topic}': no se genera explicación")
@@ -32,6 +37,8 @@ def generate_explanation(topic, student_level, con_fuentes=False):
         texto = (f"El material del curso no cubre \"{topic}\", así que no puedo explicarlo. "
                  "Los temas que sí están cubiertos son:\n\n"
                  + "\n".join(f"- {t.capitalize()}" for t in temas))
+        if con_fragmentos:
+            return texto, []
         return (texto, []) if con_fuentes else texto
 
     prompt = f"""
@@ -55,7 +62,10 @@ REGLAS:
         print(f"Error generando explicación: {e}")
         texto = f"Lo siento, no pude generar una explicación en este momento. Error: {str(e)}"
         fuentes = []
+        fragmentos = []
 
+    if con_fragmentos:
+        return texto, fragmentos
     return (texto, fuentes) if con_fuentes else texto
 
 
@@ -79,15 +89,26 @@ Respuestas: ...
         return f"Error: {str(e)}"
 
 
-def generate_exercises_with_answers(topic, student_level, quantity=3):
+def generate_exercises_with_answers(topic, student_level, quantity=3, material=None):
     """
     Genera ejercicios con IA en formato estructurado para que el usuario pueda responder.
     Retorna una lista de ejercicios con pregunta, respuesta esperada y pista.
+
+    Cuando se entrega `material` (fragmentos recuperados del corpus), los
+    ejercicios se anclan a ese material igual que las explicaciones, en vez de
+    generarse solo a partir del conocimiento del modelo (RF11/evolutivo).
     """
     
+    bloque_material = ""
+    if material:
+        bloque_material = f"""
+MATERIAL DEL CURSO (basa los ejercicios en él, no inventes métodos que no aparezcan):
+{material}
+"""
+
     prompt = f"""
 Eres un profesor de matemáticas. Genera {quantity + 3} ejercicios de {topic} para nivel {student_level}.
-
+{bloque_material}
 REGLAS:
 - Cada ejercicio debe ser una ECUACIÓN de primer grado
 - Formato: "2x + 3 = 11"
@@ -181,12 +202,23 @@ def fallback_exercises(topic, student_level, quantity=3):
     return selected
 
 
-def give_feedback(student_answer, correct_answer, student_level):
-    """Genera retroalimentación personalizada para una respuesta"""
+def give_feedback(student_answer, correct_answer, student_level, material=None):
+    """Genera retroalimentación personalizada para una respuesta
+
+    Si se entrega `material` (fragmentos del corpus recuperados para el tema),
+    la retroalimentación se apoya en ese material en lugar de generarse sola
+    (extensión del anclaje documental a la retroalimentación).
+    """
+    bloque_material = ""
+    if material:
+        bloque_material = f"""
+Apóyate en este material del curso al explicar:
+{material}
+"""
     prompt = f"""
 Estudiante de nivel {student_level} respondió: "{student_answer}"
 Respuesta correcta: "{correct_answer}"
-
+{bloque_material}
 Genera retroalimentación educativa (máximo 2 oraciones):
 - Si es correcto: felicita y refuerza el aprendizaje
 - Si es incorrecto: explica amablemente y da una pista
